@@ -1,5 +1,5 @@
 MODEL:
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  META_ARCHITECTURE: "RetinaNet"
   WEIGHTS: "/home/akhil135/PhD/DroneDetectron2/pretrained_models/R-50.pkl"
   BACKBONE:
     NAME: "build_resnet_fpn_backbone"
@@ -9,7 +9,7 @@ MODEL:
   FPN:
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
   ANCHOR_GENERATOR:
-    SIZES: [[16], [32], [64], [128], [256]]  # One size for each in feature map
+    SIZES:  [[16], [32], [64], [128], [256]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["p2", "p3", "p4", "p5", "p6"]
@@ -38,7 +38,7 @@ MODEL:
     IOU_THRESHOLDS: [0.4, 0.5]
     IOU_LABELS: [0, -1, 1]
     NUM_CLASSES: 10
-    IN_FEATURES: ["p3", "p4", "p5", "p6"]
+    IN_FEATURES: ["p2", "p4", "p5", "p6"]
 
 DATASETS:
   TRAIN: ("visdrone_2019_train",)
@@ -47,7 +47,7 @@ DATALOADER:
   NUM_WORKERS: 1
 SOLVER:
   IMS_PER_BATCH: 8
-  BASE_LR: 0.001
+  BASE_LR: 0.005
   STEPS: (30000, 40000)
   MAX_ITER: 50000
   CHECKPOINT_PERIOD: 5000

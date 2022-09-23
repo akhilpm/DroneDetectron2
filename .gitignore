@@ -1,4 +1,5 @@
 *.out
+*.pyc
 temp/
 teaser/
 pretrained_models/*

@@ -12,6 +12,7 @@ from croptrain import add_croptrainer_config, add_ubteacher_config
 from croptrain.engine.trainer import UBTeacherTrainer, BaselineTrainer
 # hacky way to register
 from croptrain.modeling.meta_arch.rcnn import TwoStagePseudoLabGeneralizedRCNN
+from croptrain.modeling.meta_arch.retinanet import RetinaNet_D2
 from croptrain.modeling.proposal_generator.rpn import PseudoLabRPN
 from croptrain.modeling.roi_heads.roi_heads import StandardROIHeadsPseudoLab
 import croptrain.data.datasets.builtin

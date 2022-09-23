@@ -57,3 +57,10 @@ def add_croptrainer_config(cfg):
     _C.CROPTEST = CN()
     _C.CROPTEST.CLUS_THRESH = 0.3
     _C.CROPTEST.MAX_CLUSTER = 5
+    _C.MODEL.CUSTOM = CN()
+    _C.MODEL.CUSTOM.FOCAL_LOSS_GAMMAS = []
+    _C.MODEL.CUSTOM.FOCAL_LOSS_ALPHAS = []
+
+    _C.MODEL.CUSTOM.CLS_WEIGHTS = []
+    _C.MODEL.CUSTOM.REG_WEIGHTS = []
+     

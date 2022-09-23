@@ -29,4 +29,4 @@ unzip -q ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/VisDrone2019-DET-
 cp -r $SLURM_TMPDIR/VisDrone2019-DET-val/images/ $SLURM_TMPDIR/VisDrone/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_val.json $SLURM_TMPDIR/VisDrone/
 
-python train_net.py --num-gpus 1 --config-file configs/RetinaNet50.yaml OUTPUT_DIR ~/scratch/detectron2/RetinaNet_8
+python train_net.py --num-gpus 1 --config-file configs/RetinaNet50.yaml OUTPUT_DIR ~/scratch/detectron2/RetinaNet_BS8

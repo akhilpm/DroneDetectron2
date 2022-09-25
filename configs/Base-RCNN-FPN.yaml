@@ -34,11 +34,6 @@ MODEL:
     NAME: "MaskRCNNConvUpsampleHead"
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
-  RETINANET:
-    IOU_THRESHOLDS: [0.4, 0.5]
-    IOU_LABELS: [0, -1, 1]
-    NUM_CLASSES: 10
-    IN_FEATURES: ["p3", "p4", "p5", "p6"]
 
 DATASETS:
   TRAIN: ("visdrone_2019_train",)
@@ -58,3 +53,5 @@ VERSION: 2
 TEST:
   EVAL_PERIOD: 5000
   DETECTIONS_PER_IMAGE: 500
+CROPTRAIN:
+  USE_CROPS: False

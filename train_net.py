@@ -45,7 +45,10 @@ def main(args):
         Trainer = BaselineTrainer
 
     if cfg.CROPTRAIN.USE_CROPS:
+        cfg.defrost()
         cfg.MODEL.ROI_HEADS.NUM_CLASSES += 1
+        cfg.MODEL.RETINANET.NUM_CLASSES += 1
+        cfg.freeze()
     if "visdrone" in cfg.DATASETS.TRAIN[0] or "visdrone" in cfg.DATASETS.TEST[0]:
         data_dir = os.path.join(os.environ['SLURM_TMPDIR'], "VisDrone")
         if not args.eval_only:

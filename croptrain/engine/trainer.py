@@ -1,6 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 from multiprocessing import connection
-from threading import enumerate
 import os
 import time
 import logging
@@ -253,7 +252,7 @@ class BaselineTrainer(DefaultTrainer):
                 len(cfg.DATASETS.TEST), len(evaluators)
             )
 
-        results = OrderedDict()    
+        results = OrderedDict()
         for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
             data_loader = cls.build_test_loader(cfg, dataset_name)
 
@@ -797,7 +796,7 @@ def inference_on_dataset(model, data_loader, evaluator, cfg):
     total_eval_time = 0
     cluster_class = cfg.MODEL.ROI_HEADS.NUM_CLASSES
     with ExitStack() as stack:
-        if isinstance(model, nn.Module):
+        if isinstance(model, torch.nn.Module):
             stack.enter_context(inference_context(model))
         stack.enter_context(torch.no_grad())
 
@@ -897,7 +896,7 @@ def get_dict_from_crops(crops, input_dict, CROPSIZE):
         crop_dicts.append(crop_dict)
         crop_scales.append(float(CROPSIZE)/crop_size_min)
 
-    return crop_dicts, crop_scales
+    return crop_dicts
 
 
 def merge_cluster_boxes(cluster_boxes):

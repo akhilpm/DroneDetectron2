@@ -168,6 +168,7 @@ class DatasetMapperDensityCrop(DatasetMapper):
     """
 
     def __init__(self, cfg, is_train=True):
+        super(DatasetMapperDensityCrop, self).__init__(cfg, is_train)
         augmentations = utils.build_augmentation(cfg, is_train)
         self.augmentations = T.AugmentationList(augmentations)
         # fmt: off
@@ -220,6 +221,13 @@ class DatasetMapperDensityCrop(DatasetMapper):
             dataset_dict.pop("annotations", None)
             dataset_dict.pop("sem_seg_file_name", None)
             return dataset_dict
+
+        if "annotations" in dataset_dict:
+            for anno in dataset_dict["annotations"]:
+                if not self.mask_on:
+                    anno.pop("segmentation", None)
+                if not self.keypoint_on:
+                    anno.pop("keypoints", None)    
 
         if "annotations" in dataset_dict:
             self._transform_annotations(dataset_dict, transforms, image_shape)

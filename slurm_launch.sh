@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --time=14:50:00
 #SBATCH --account=def-mpederso
-#SBATCH --gres=gpu:1              # Number of GPUs (per node)
-#SBATCH --mem=16G               # memory (per node)
+#SBATCH --gres=gpu:2              # Number of GPUs (per node)
+#SBATCH --mem=12G               # memory (per node)
 # set name of job
 #SBATCH --cpus-per-task=1
 #SBATCH --job-name=visdrone_train
@@ -29,4 +29,4 @@ unzip -q ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/VisDrone2019-DET-
 cp -r $SLURM_TMPDIR/VisDrone2019-DET-val/images/ $SLURM_TMPDIR/VisDrone/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_val.json $SLURM_TMPDIR/VisDrone/
 
-python train_net.py --num-gpus 1 --config-file configs/RetinaNet50.yaml OUTPUT_DIR ~/scratch/detectron2/RetinaNet_BS8
+python train_net.py --num-gpus 2 --config-file configs/RetinaNet-ResNet.yaml OUTPUT_DIR ~/scratch/detectron2/RetinaNet_4

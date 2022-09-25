@@ -98,13 +98,16 @@ def compute_crops(data_dict, cfg):
 
     #extract boxes inside each cluster
     for i in range(len(new_boxes)):
+        cluster_components = bbox_inside(new_boxes[i], gt_boxes)
+        check = (inside_flag&cluster_components)
+        if check.sum()==len(gt_boxes):
+            continue    
         data_dict_crop = copy.deepcopy(data_dict)
         data_dict_crop['full_image'] = False
         data_dict_crop['crop_area'] = new_boxes[i]
         data_dict_crop['height'] = new_boxes[i, 3] - new_boxes[i, 1]
         data_dict_crop['width'] = new_boxes[i, 2] - new_boxes[i, 0]
         x1, y1 = new_boxes[i, 0], new_boxes[i, 1]
-        cluster_components = bbox_inside(new_boxes[i], gt_boxes)
         ref_point = np.array([x1, y1, x1, y1], dtype=np.int32)
         data_dict_crop['annotations'] =  list(compress(data_dict_crop['annotations'], cluster_components))
         for obj in data_dict_crop['annotations']:
@@ -113,10 +116,11 @@ def compute_crops(data_dict, cfg):
         inside_flag &= (~cluster_components)
 
     #finally change the original datadict by adding new cluster classes and the corresponding boxes
-    data_dict["annotations"] = list(compress(data_dict["annotations"], inside_flag))
+    if inside_flag.sum()!=0:
+       data_dict["annotations"] = list(compress(data_dict["annotations"], inside_flag))
     for i in range(len(new_boxes)):
         crop_annotation = copy.deepcopy(data_dict["annotations"][0])
-        crop_annotation['category_id'] = 11
+        crop_annotation['category_id'] = 10
         crop_annotation['bbox'] = list(new_boxes[i])
         data_dict["annotations"].append(crop_annotation)
 
@@ -177,7 +181,6 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
                 )
         id_map = {v: i for i, v in enumerate(cat_ids)}
         meta.set(thing_dataset_id_to_contiguous_id=id_map)
-
     # sort indices for reproducible results
     img_ids = sorted(coco_api.imgs.keys())
     imgs = coco_api.loadImgs(img_ids)

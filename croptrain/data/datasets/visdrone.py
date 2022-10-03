@@ -128,14 +128,25 @@ def compute_crops(data_dict, cfg):
 
 
 def  extract_crops_from_image(dataset_dicts, cfg):
-    old_dataset_dicts = []
-    new_dataset_dicts = []
-    for i, data_dict in enumerate(dataset_dicts):
-        updated_dict, crop_dicts = compute_crops(data_dict, cfg)
-        new_dataset_dicts += crop_dicts
-        old_dataset_dicts.append(updated_dict)
-
-    return old_dataset_dicts + new_dataset_dicts
+    import pickle
+    cache_file = os.path.join(os.environ['SLURM_TMPDIR'], "VisDrone", "train_crops.pkl")
+    if os.path.exists(cache_file):
+        with open(cache_file, 'rb') as fid:
+            total_dicts = pickle.load(fid)
+        print('Dataset with pre-computed crops loaded from {}'.format(cache_file))
+        return total_dicts
+    else:
+        old_dataset_dicts = []
+        new_dataset_dicts = []
+        for i, data_dict in enumerate(dataset_dicts):
+            updated_dict, crop_dicts = compute_crops(data_dict, cfg)
+            new_dataset_dicts += crop_dicts
+            old_dataset_dicts.append(updated_dict)
+        total_dicts = old_dataset_dicts + new_dataset_dicts    
+        with open(cache_file, 'wb') as fid:
+            pickle.dump(total_dicts, fid, pickle.HIGHEST_PROTOCOL)
+        print('Wrote crops data to {}'.format(cache_file))
+        return total_dicts
 
 
 def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_keys=None):
@@ -151,13 +162,12 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
     if timer.seconds() > 1:
         logger.info("Loading {} takes {:.2f} seconds.".format(json_file, timer.seconds()))
 
-
     if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
         cat_ids = sorted(coco_api.getCatIds())
         cat_ids = cat_ids[:-1] #ingore the last "others" class
         cats = coco_api.loadCats(cat_ids)
-        if cfg.CROPTRAIN.USE_CROPS:
+        if cfg.CROPTRAIN.USE_CROPS and is_train:
             cats.append({'id':11, 'name':'cluster', 'supercategory':'none'})
             cat_ids.append(11)
         # The categories in a custom json file may not be sorted.
@@ -181,6 +191,7 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
                 )
         id_map = {v: i for i, v in enumerate(cat_ids)}
         meta.set(thing_dataset_id_to_contiguous_id=id_map)
+        
     # sort indices for reproducible results
     img_ids = sorted(coco_api.imgs.keys())
     imgs = coco_api.loadImgs(img_ids)
@@ -255,7 +266,7 @@ def register_visdrone(dataset_name, data_dir, cfg, is_train):
     cat_ids = sorted(coco_api.getCatIds())
     cat_ids = cat_ids[:-1] #ingore the last "others" class
     cats = coco_api.loadCats(cat_ids)
-    if cfg.CROPTRAIN.USE_CROPS:
+    if cfg.CROPTRAIN.USE_CROPS and is_train:
         cats.append({'id':11, 'name':'cluster', 'supercategory':'none'})
         cat_ids.append(11)
     # The categories in a custom json file may not be sorted.

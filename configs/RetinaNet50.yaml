@@ -9,7 +9,7 @@ MODEL:
   FPN:
     IN_FEATURES: ["res3", "res4", "res5"]
   ANCHOR_GENERATOR:
-    SIZES:  [[32], [64], [128], [256], [512]]  # One size for each in feature map
+    SIZES:  [[16], [32], [64], [128], [256]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RETINANET:
     IOU_THRESHOLDS: [0.4, 0.5]
@@ -17,10 +17,10 @@ MODEL:
     NUM_CLASSES: 10
     IN_FEATURES: ["p3", "p4", "p5", "p6", "p7"]
   CUSTOM:
-    FOCAL_LOSS_ALPHAS: [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
-    FOCAL_LOSS_GAMMAS: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
-    CLS_WEIGHTS: [1., 1., 1., 1., 1.]
-    REG_WEIGHTS: [1., 1., 1., 1., 1.]  
+    FOCAL_LOSS_ALPHAS: [0.25, 0.25, 0.25, 0.25, 0.25]
+    FOCAL_LOSS_GAMMAS: [2.0, 2.0, 2.0, 2.0, 2.0]
+    CLS_WEIGHTS: [1.0, 1.4, 1.8, 2.2, 2.6]
+    REG_WEIGHTS: [1.0, 1.4, 1.8, 2.2, 2.6]  
 
 DATASETS:
   TRAIN: ("visdrone_2019_train",)
@@ -36,7 +36,9 @@ SOLVER:
 INPUT:
   MIN_SIZE_TRAIN: (640, 672, 704, 736, 768, 800)
   MAX_SIZE_TRAIN: 1333
+  MIN_SIZE_TEST: 800
+  MAX_SIZE_TEST: 1333
 VERSION: 2
 TEST:
-  EVAL_PERIOD: 5000
+  EVAL_PERIOD: 3000
   DETECTIONS_PER_IMAGE: 500

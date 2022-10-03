@@ -38,7 +38,9 @@ def setup(args):
 def main(args):
     cfg = setup(args)
     if not torch.cuda.is_available():
+        cfg.defrost()
         cfg.MODEL.DEVICE = 'cpu'
+        cfg.freeze()
     if cfg.SEMISUPNET.USE_SEMISUP:
         Trainer = UBTeacherTrainer
     else:
@@ -71,7 +73,7 @@ def main(args):
                 cfg.MODEL.WEIGHTS, resume=args.resume
             )
             if cfg.CROPTRAIN.USE_CROPS:
-                res = Trainer.test_crop(cfg, model)
+                res = Trainer.test_crop(cfg, model, 0)
             else:
                 res = Trainer.test(cfg, model)
         return res

@@ -62,18 +62,19 @@ def inference_on_dataset(model, data_loader, evaluator, cfg, iter):
             outputs = model.inference(batched_inputs=inputs)
             cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
             cluster_boxes = outputs[0]["instances"][cluster_class_indices]
-            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.5]
-            #new_cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
+            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.3]
             outputs[0]["instances"] = outputs[0]["instances"][~cluster_class_indices]
-            cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTRAIN.CROPSIZE)
             all_instances = [outputs[0]["instances"]]
-            image_size = all_instances[0].image_size
-            for i, cluster_dict in enumerate(cluster_dicts):
-                cluster_outputs = model.inference(batched_inputs=[cluster_dict])[0]["instances"]
-                non_cluster_class_indices = (cluster_outputs.pred_classes!=cluster_class)
-                cluster_outputs = cluster_outputs[non_cluster_class_indices]
-                cluster_outputs._image_size = image_size
-                all_instances.append(cluster_outputs)
+            if len(cluster_boxes)!=0:
+                cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
+                cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTRAIN.CROPSIZE)
+                image_size = all_instances[0].image_size
+                for i, cluster_dict in enumerate(cluster_dicts):
+                    cluster_outputs = model.inference(batched_inputs=[cluster_dict])[0]["instances"]
+                    non_cluster_class_indices = (cluster_outputs.pred_classes!=cluster_class)
+                    cluster_outputs = cluster_outputs[non_cluster_class_indices]
+                    cluster_outputs._image_size = image_size
+                    all_instances.append(cluster_outputs)
             all_outputs = [{"instances": Instances.cat(all_instances)}]
             
             if idx%70==0:
@@ -175,21 +176,27 @@ def get_dict_from_crops(crops, input_dict, CROPSIZE):
 
 
 def merge_cluster_boxes(cluster_boxes, cfg):
-    box_scores = cluster_boxes.scores
-    conf_clusters = (box_scores > 0.5)
+    if len(cluster_boxes)==0:
+        return None
+    if len(cluster_boxes)==1:
+        box = cluster_boxes.pred_boxes.tensor.cpu().numpy().astype(np.int32).reshape(1, -1)
+        return box
+
     overlaps = pairwise_iou(cluster_boxes.pred_boxes, cluster_boxes.pred_boxes)
     connectivity = (overlaps > cfg.CROPTRAIN.CLUSTER_THRESHOLD)
     new_boxes = np.zeros((0, 4), dtype=np.int32)
     while len(connectivity)>0:
         connections = connectivity.sum(dim=1)
         max_connected, max_connections = torch.argmax(connections), torch.max(connections)
-        if max_connections==1:
-            break
         cluster_components = torch.nonzero(connectivity[max_connected]).view(-1)
         other_boxes = torch.nonzero(~connectivity[max_connected]).view(-1)
-        cluster_members = cluster_boxes.pred_boxes.tensor[cluster_components]
-        x1, y1 = cluster_members[:, 0].min(), cluster_members[:, 1].min()
-        x2, y2 = cluster_members[:, 2].max(), cluster_members[:, 3].max()
+        if max_connections==1:
+            box = cluster_boxes.pred_boxes.tensor[max_connected]
+            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
+        else:
+            cluster_members = cluster_boxes.pred_boxes.tensor[cluster_components]
+            x1, y1 = cluster_members[:, 0].min(), cluster_members[:, 1].min()
+            x2, y2 = cluster_members[:, 2].max(), cluster_members[:, 3].max()
         crop_area = np.array([int(x1), int(y1), int(x2), int(y2)]).astype(np.int32)
         new_boxes = np.append(new_boxes, crop_area.reshape(1, -1), axis=0)
         connectivity = connectivity[:, other_boxes]

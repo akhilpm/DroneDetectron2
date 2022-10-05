@@ -171,6 +171,8 @@ class DatasetMapperDensityCrop(DatasetMapper):
         super(DatasetMapperDensityCrop, self).__init__(cfg, is_train)
         augmentations = utils.build_augmentation(cfg, is_train)
         self.augmentations = T.AugmentationList(augmentations)
+        augmentations_crop = build_augmentation_crop(cfg, is_train)
+        self.augmentations_crop = T.AugmentationList(augmentations_crop)
         # fmt: off
         self.img_format = cfg.INPUT.FORMAT
         self.mask_on = cfg.MODEL.MASK_ON
@@ -208,7 +210,10 @@ class DatasetMapperDensityCrop(DatasetMapper):
         utils.check_image_size(dataset_dict, image)
 
         aug_input = T.StandardAugInput(image, sem_seg=None)
-        transforms = self.augmentations(aug_input)
+        if dataset_dict['full_image']:
+            transforms = self.augmentations(aug_input)
+        else:
+            transforms = self.augmentations_crop(aug_input)
         image, sem_seg_gt = aug_input.image, aug_input.sem_seg
         image_shape = image.shape[:2]
 
@@ -233,3 +238,28 @@ class DatasetMapperDensityCrop(DatasetMapper):
             self._transform_annotations(dataset_dict, transforms, image_shape)
         
         return dataset_dict
+
+
+def build_augmentation_crop(cfg, is_train):
+    """
+    Create a list of default :class:`Augmentation` from config.
+    Now it includes resizing and flipping.
+
+    Returns:
+        list[Augmentation]
+    """
+    min_size = cfg.CROPTRAIN.CROPSIZE
+    max_size = cfg.CROPTRAIN.MAX_CROPSIZE
+    if is_train:
+        sample_style = cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
+    else:
+        sample_style = "choice"
+    augmentation = [T.ResizeShortestEdge(min_size, max_size, sample_style)]
+    if is_train and cfg.INPUT.RANDOM_FLIP != "none":
+        augmentation.append(
+            T.RandomFlip(
+                horizontal=cfg.INPUT.RANDOM_FLIP == "horizontal",
+                vertical=cfg.INPUT.RANDOM_FLIP == "vertical",
+            )
+        )
+    return augmentation

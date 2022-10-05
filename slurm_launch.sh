@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=14:10:00
+#SBATCH --time=11:10:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
 #SBATCH --mem=12G               # memory (per node)

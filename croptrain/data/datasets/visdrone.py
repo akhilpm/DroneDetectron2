@@ -99,9 +99,9 @@ def compute_crops(data_dict, cfg):
     #extract boxes inside each cluster
     for i in range(len(new_boxes)):
         cluster_components = bbox_inside(new_boxes[i], gt_boxes)
-        check = (inside_flag&cluster_components)
-        if check.sum()==len(gt_boxes):
-            continue    
+        #check = (inside_flag&cluster_components)
+        #if check.sum()==len(gt_boxes):
+        #    continue    
         data_dict_crop = copy.deepcopy(data_dict)
         data_dict_crop['full_image'] = False
         data_dict_crop['crop_area'] = new_boxes[i]
@@ -116,8 +116,8 @@ def compute_crops(data_dict, cfg):
         inside_flag &= (~cluster_components)
 
     #finally change the original datadict by adding new cluster classes and the corresponding boxes
-    if inside_flag.sum()!=0:
-       data_dict["annotations"] = list(compress(data_dict["annotations"], inside_flag))
+    #if inside_flag.sum()!=0:
+    #   data_dict["annotations"] = list(compress(data_dict["annotations"], inside_flag))
     for i in range(len(new_boxes)):
         crop_annotation = copy.deepcopy(data_dict["annotations"][0])
         crop_annotation['category_id'] = 10

@@ -26,4 +26,4 @@ cp -r $SLURM_TMPDIR/VisDrone2019-DET-val/images/ $SLURM_TMPDIR/VisDrone/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_val.json $SLURM_TMPDIR/VisDrone/
 #cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_test.json $SLURM_TMPDIR/VisDrone/
 
-python train_net.py --eval_only --config-file configs/Base-RCNN-FPN.yaml MODEL.WEIGHTS ~/scratch/detectron2/FPN/final.pth
+python train_net.py --eval-only --config-file configs/Base-RCNN-FPN.yaml MODEL.WEIGHTS ~/scratch/detectron2/FPN/final.pth

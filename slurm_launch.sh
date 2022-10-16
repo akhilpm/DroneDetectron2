@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=11:10:00
+#SBATCH --time=11:50:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
 #SBATCH --mem=12G               # memory (per node)
@@ -15,7 +15,6 @@
 module load gcc python cuda/11.4 opencv/4.5.5
 source ~/envs/detectron2/bin/activate
 
-
 mkdir  $SLURM_TMPDIR/VisDrone
 mkdir  $SLURM_TMPDIR/VisDrone/train
 mkdir $SLURM_TMPDIR/VisDrone/annotations
@@ -30,4 +29,4 @@ cp -r $SLURM_TMPDIR/VisDrone2019-DET-val/images/ $SLURM_TMPDIR/VisDrone/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_val.json $SLURM_TMPDIR/VisDrone/
 #cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/train_crops.pkl $SLURM_TMPDIR/VisDrone/
 
-python train_net.py --num-gpus 1 --config-file configs/Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/FPN_FULL
+python train_net.py --num-gpus 1 --config-file configs/RCNN-FPN-CROP.yaml OUTPUT_DIR ~/scratch/detectron2/FPN_CROP_MULTISCALE

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 thing_classes = None
 id_map = None
 
-def bbox_inside(box, other_boxes):
+def bbox_inside_old(box, other_boxes):
     x_inside_min = box[0] < other_boxes[:, 0]
     y_inside_min = box[1] < other_boxes[:, 1]
     x_inside_max = box[2] > other_boxes[:, 2]
@@ -27,9 +27,20 @@ def bbox_inside(box, other_boxes):
     inside_box = x_inside_min & x_inside_max & y_inside_min & y_inside_max
     return inside_box
 
+def bbox_inside(box, other_boxes):
+    ixmin = np.maximum(other_boxes[:, 0], box[0])
+    iymin = np.maximum(other_boxes[:, 1], box[1])
+    ixmax = np.minimum(other_boxes[:, 2], box[2])
+    iymax = np.minimum(other_boxes[:, 3], box[3])
+    intersection = np.stack([ixmin, iymin, ixmax, iymax], axis=1).astype(np.int32)
+    inters = np.maximum(ixmax - ixmin, 0.) * np.maximum(iymax - iymin, 0.)
+    inside_box = (inters>50)
+    return intersection[inside_box], inside_box
+
 def bbox_scale(boxes, height, width):
-    x_min, y_min = boxes[:, 0]-20, boxes[:, 1]-20
-    x_max, y_max = boxes[:, 2]+20, boxes[:, 3]+20
+    scale_pixels = 20
+    x_min, y_min = boxes[:, 0]-scale_pixels, boxes[:, 1]-scale_pixels
+    x_max, y_max = boxes[:, 2]+scale_pixels, boxes[:, 3]+scale_pixels
     x_min, y_min = x_min.clip(min=0), y_min.clip(min=0)
     x_max, y_max = x_max.clip(max=width), y_max.clip(max=height)
     scaled_boxes = np.stack([x_min, y_min, x_max, y_max], axis=1)
@@ -98,10 +109,10 @@ def compute_crops(data_dict, cfg):
 
     #extract boxes inside each cluster
     for i in range(len(new_boxes)):
-        cluster_components = bbox_inside(new_boxes[i], gt_boxes)
+        isect_boxes, cluster_components = bbox_inside(new_boxes[i], gt_boxes)
         #check = (inside_flag&cluster_components)
         #if check.sum()==len(gt_boxes):
-        #    continue    
+        #    continue
         data_dict_crop = copy.deepcopy(data_dict)
         data_dict_crop['full_image'] = False
         data_dict_crop['crop_area'] = new_boxes[i]
@@ -110,8 +121,8 @@ def compute_crops(data_dict, cfg):
         x1, y1 = new_boxes[i, 0], new_boxes[i, 1]
         ref_point = np.array([x1, y1, x1, y1], dtype=np.int32)
         data_dict_crop['annotations'] =  list(compress(data_dict_crop['annotations'], cluster_components))
-        for obj in data_dict_crop['annotations']:
-            obj['bbox'] = obj['bbox'] - ref_point
+        for j, obj in enumerate(data_dict_crop['annotations']):
+            obj['bbox'] = list(isect_boxes[j] - ref_point)
         new_data_dicts.append(data_dict_crop)
         inside_flag &= (~cluster_components)
 
@@ -122,31 +133,21 @@ def compute_crops(data_dict, cfg):
         crop_annotation = copy.deepcopy(data_dict["annotations"][0])
         crop_annotation['category_id'] = 10
         crop_annotation['bbox'] = list(new_boxes[i])
+        crop_annotation['iscrowd'] = 0
         data_dict["annotations"].append(crop_annotation)
 
     return data_dict, new_data_dicts
 
 
 def  extract_crops_from_image(dataset_dicts, cfg):
-    import pickle
-    cache_file = os.path.join(os.environ['SLURM_TMPDIR'], "VisDrone", "train_crops.pkl")
-    if os.path.exists(cache_file):
-        with open(cache_file, 'rb') as fid:
-            total_dicts = pickle.load(fid)
-        print('Dataset with pre-computed crops loaded from {}'.format(cache_file))
-        return total_dicts
-    else:
-        old_dataset_dicts = []
-        new_dataset_dicts = []
-        for i, data_dict in enumerate(dataset_dicts):
-            updated_dict, crop_dicts = compute_crops(data_dict, cfg)
-            new_dataset_dicts += crop_dicts
-            old_dataset_dicts.append(updated_dict)
-        total_dicts = old_dataset_dicts + new_dataset_dicts    
-        with open(cache_file, 'wb') as fid:
-            pickle.dump(total_dicts, fid, pickle.HIGHEST_PROTOCOL)
-        print('Wrote crops data to {}'.format(cache_file))
-        return total_dicts
+    old_dataset_dicts = []
+    new_dataset_dicts = []
+    for i, data_dict in enumerate(dataset_dicts):
+        updated_dict, crop_dicts = compute_crops(data_dict, cfg)
+        new_dataset_dicts += crop_dicts
+        old_dataset_dicts.append(updated_dict)
+    total_dicts = old_dataset_dicts + new_dataset_dicts
+    return total_dicts
 
 
 def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_keys=None):

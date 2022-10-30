@@ -77,6 +77,8 @@ def build_detection_semisup_train_loader(cfg, mapper=None):
 
     if cfg.CROPTRAIN.USE_CROPS:
         mapper = DatasetMapperDensityCrop(cfg, True)
+    if "dota" in cfg.DATASETS.TRAIN[0] or "dota" in cfg.DATASETS.TEST[0]:
+        mapper = DatasetMapperDensityCrop(cfg, True)
     if mapper is None:
         mapper = DatasetMapper(cfg, True)
     dataset = MapDataset(dataset, mapper)
@@ -124,6 +126,8 @@ def build_detection_test_loader(cfg, dataset_name, mapper=None):
         else None,
     )
     dataset = DatasetFromList(dataset_dicts)
+    if "dota" in cfg.DATASETS.TRAIN[0] or "dota" in cfg.DATASETS.TEST[0]:
+        mapper = DatasetMapperDensityCrop(cfg, False)
     if mapper is None:
         mapper = DatasetMapper(cfg, False)
     dataset = MapDataset(dataset, mapper)

@@ -57,6 +57,10 @@ def read_image(dataset_dict):
         crop_area = dataset_dict['crop_area']
         x1, y1, x2, y2 = crop_area[0], crop_area[1], crop_area[2], crop_area[3]
         image = image[y1:y2, x1:x2]
+        if dataset_dict["two_stage_crop"]:
+            crop_area = dataset_dict['inner_crop_area']
+            x1, y1, x2, y2 = crop_area[0], crop_area[1], crop_area[2], crop_area[3]
+            image = image[y1:y2, x1:x2]
 
     if len(image.shape) == 2:
         image = image[:,:,np.newaxis]

@@ -5,3 +5,5 @@ teaser/
 pretrained_models/*
 output/*
 dataseed/
+.ipynb_checkpoints/
+*.ipynb

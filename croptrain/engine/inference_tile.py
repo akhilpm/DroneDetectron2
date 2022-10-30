@@ -1,4 +1,5 @@
 from turtle import width
+from croptrain.data.datasets.dota import get_datadicts_from_sliding_windows, get_sliding_window_patches, get_overlapping_sliding_window
 import numpy as np
 import torch
 from detectron2.evaluation import DatasetEvaluator
@@ -22,17 +23,16 @@ from detectron2.modeling.roi_heads.fast_rcnn import fast_rcnn_inference
 logging.basicConfig(level=logging.INFO)
 
 
-def prune_boxes_inside_cluster(cluster_dicts, boxes, scores, num_classes):
+def prune_boxes_inside_cluster(cluster_dicts, boxes, scores):
+    #num_classes = (boxes.shape[1] // 4) + 1
     boxes = boxes[0].reshape(-1, 4)
-    scores = scores[0].flatten()
+    scores = scores[0]
     for cluster_dict in cluster_dicts:
         crop_area = cluster_dict["crop_area"]
         inside_boxes = bbox_inside_old(crop_area, boxes)
-        boxes[inside_boxes] = 0.0
-        scores[inside_boxes] = 0.0
-    boxes = boxes.view(-1, num_classes * 4)
-    scores = scores.view(-1, num_classes)
-    return [boxes], [scores]
+        boxes = boxes[~inside_boxes]
+        scores = scores[~inside_boxes]
+    return [boxes], [scores]    
 
 def get_box_predictions(model, features, proposals):
     features = [features[f] for f in model.roi_heads.box_in_features]
@@ -59,7 +59,10 @@ def project_boxes_to_image(data_dict, crop_sizes, boxes):
 
     #shift to the proper position of the crop in the image
     if not data_dict["full_image"]:
-        x1, y1 = data_dict["crop_area"][0], data_dict["crop_area"][1]
+        if data_dict["two_stage_crop"]:
+            x1, y1 = data_dict['inner_crop_area'][0], data_dict['inner_crop_area'][1]
+        else:
+            x1, y1 = data_dict["crop_area"][0], data_dict["crop_area"][1]
         ref_point = torch.tensor([x1, y1, x1, y1]).to(boxes.device)
         boxes = boxes + ref_point
     boxes = boxes.view(-1, num_bbox_reg_classes * 4) # R x C.4
@@ -77,7 +80,6 @@ def infer_on_image_and_crops(input_dicts, cluster_dicts, model, cfg):
     del features_original
 
     if cluster_dicts:
-        #boxes, scores = prune_boxes_inside_cluster(cluster_dicts, boxes, scores, num_bbox_reg_classes)
         for i, cluster_dict in enumerate(cluster_dicts):
             images_crop = model.preprocess_image([cluster_dict])
             features_crop = model.backbone(images_crop.tensor)
@@ -85,16 +87,20 @@ def infer_on_image_and_crops(input_dicts, cluster_dicts, model, cfg):
             #get detections from crop and project it to wrt to original image size
             boxes_crop, scores_crop = get_box_predictions(model, features_crop, proposals_crop)
             boxes_crop = project_boxes_to_image(cluster_dict, images_crop.image_sizes[0], boxes_crop[0])
+            if cluster_dict["two_stage_crop"]:
+                x1, y1 = cluster_dict["crop_area"][0], cluster_dict["crop_area"][1]
+                ref_point = torch.tensor([x1, y1, x1, y1]).to(boxes_crop.device)
+                boxes_crop = boxes_crop.reshape(-1, 4)
+                boxes_crop = boxes_crop + ref_point
+                boxes_crop = boxes_crop.view(-1, num_bbox_reg_classes * 4)
             boxes[0] = torch.cat([boxes[0], boxes_crop], dim=0)
             scores[0] = torch.cat([scores[0], scores_crop[0]], dim=0)
-    pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
-        cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST, cfg.CROPTEST.DETECTIONS_PER_IMAGE)
-    return pred_instances[0]
+    return boxes, scores
 
 
-def inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter):
+def inference_dota(model, data_loader, evaluator, cfg, iter):
     from detectron2.utils.comm import get_world_size
-    #dataset_dicts = get_detection_dataset_dicts(cfg.DATASETS.TEST, filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS)
+    dataset_dicts = get_detection_dataset_dicts(cfg.DATASETS.TEST, filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS)
 
     num_devices = get_world_size()
     logger = logging.getLogger(__name__)
@@ -108,11 +114,6 @@ def inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter):
     save_dir = os.path.join(cfg.OUTPUT_DIR, "detections")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    #last_class = evaluator._metadata.get("thing_classes")[-1]
-    #if last_class=="cluster":
-    #    all_classes = evaluator._metadata.get("thing_classes")
-    #    evaluator._metadata.__dict__['thing_classes'] =  all_classes[:-1]
-    #    evaluator._metadata.__dict__['thing_dataset_id_to_contiguous_id'].pop(cfg.MODEL.ROI_HEADS.NUM_CLASSES)
 
     num_warmup = min(5, total - 1)
     start_time = time.perf_counter()
@@ -135,21 +136,34 @@ def inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter):
                 total_eval_time = 0
 
             start_compute_time = time.perf_counter()
-            outputs = model.inference(batched_inputs=inputs)
-            cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
-            cluster_boxes = outputs[0]["instances"][cluster_class_indices]
-            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.6]
-
-            #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
-            #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)
-            
-            if len(cluster_boxes)!=0:
-                #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
-                cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTEST.CROPSIZE)
-                pred_instances = infer_on_image_and_crops(inputs, cluster_dicts, model, cfg)
-            else:
-                pred_instances = infer_on_image_and_crops(inputs, None, model, cfg)
-            pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]                                
+            #new_boxes = get_sliding_window_patches(dataset_dicts[idx])
+            new_boxes = get_overlapping_sliding_window(dataset_dicts[idx])
+            new_data_dicts = get_dict_from_crops(new_boxes, inputs[0], cfg.CROPTEST.CROPSIZE)
+            image_shapes = [(dataset_dicts[idx].get("height"), dataset_dicts[idx].get("width"))]
+            boxes, scores = torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES*4).to(model.device), torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES+1).to(model.device)
+            for data_dict in new_data_dicts:
+                if cfg.CROPTRAIN.USE_CROPS:
+                    outputs = model.inference(batched_inputs=[data_dict])
+                    cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
+                    cluster_boxes = outputs[0]["instances"][cluster_class_indices]
+                    cluster_boxes = cluster_boxes[cluster_boxes.scores>0.6]
+                else:
+                    cluster_boxes = []
+                #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
+                #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)
+                
+                if len(cluster_boxes)!=0:
+                    #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
+                    cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTEST.CROPSIZE, inner_crop=True)
+                    boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], cluster_dicts, model, cfg)
+                else:
+                    boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], None, model, cfg)
+                boxes = torch.cat([boxes, boxes_patch[0]], dim=0)
+                scores = torch.cat([scores, scores_patch[0]], dim=0)
+            pred_instances, _ = fast_rcnn_inference([boxes], [scores], image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
+                                    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST, cfg.CROPTEST.DETECTIONS_PER_IMAGE)
+            pred_instances = pred_instances[0]
+            pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]
             all_outputs = [{"instances": pred_instances}]
             
             #if idx%100==0:
@@ -223,7 +237,7 @@ def inference_context(model):
     model.train(training_mode)
 
 
-def get_dict_from_crops(crops, input_dict, CROPSIZE):
+def get_dict_from_crops(crops, input_dict, CROPSIZE, inner_crop=False):
     if len(crops)==0:
         return []
     if isinstance(crops, Instances):
@@ -237,7 +251,11 @@ def get_dict_from_crops(crops, input_dict, CROPSIZE):
             continue
         crop_dict = copy.deepcopy(input_dict)
         crop_dict['full_image'] = False
-        crop_dict['crop_area'] = np.array([x1, y1, x2, y2])
+        if inner_crop:
+            crop_dict["two_stage_crop"] = True
+            crop_dict["inner_crop_area"] = np.array([x1, y1, x2, y2])
+        else:    
+            crop_dict['crop_area'] = np.array([x1, y1, x2, y2])
         crop_region = read_image(crop_dict)
         crop_region = torch.as_tensor(np.ascontiguousarray(crop_region.transpose(2, 0, 1)))
         crop_region = transform(crop_region)

@@ -213,7 +213,13 @@ class DatasetMapperDensityCrop(DatasetMapper):
         if dataset_dict['full_image']:
             transforms = self.augmentations(aug_input)
         else:
-            transforms = self.augmentations_crop(aug_input)
+            if "dota" in self.cfg.DATASETS.TRAIN[0]  or "dota" in self.cfg.DATASETS.TEST[0]:
+                if dataset_dict["two_stage_crop"]:
+                    transforms = self.augmentations_crop(aug_input)
+                else:
+                    transforms = self.augmentations(aug_input)
+            else:
+                transforms = self.augmentations_crop(aug_input)
         image, sem_seg_gt = aug_input.image, aug_input.sem_seg
         image_shape = image.shape[:2]
 

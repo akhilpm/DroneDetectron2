@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 from multiprocessing import connection
 import os
+from croptrain.engine.inference_tile import inference_dota
 import time
 import logging
 import torch
@@ -29,7 +30,8 @@ from detectron2.utils.logger import log_every_n_seconds
 from contextlib import ExitStack, contextmanager
 from croptrain.data.detection_utils import read_image
 from utils.plot_utils import plot_detections
-from croptrain.engine.inference import inference_on_dataset
+from croptrain.engine.inference import inference_on_dataset_with_crops
+from detectron2.evaluation import inference_on_dataset
 from croptrain.data.build import (
     build_detection_semisup_train_loader,
     build_detection_test_loader,
@@ -233,9 +235,15 @@ class BaselineTrainer(DefaultTrainer):
 
         def test_and_save_results():
             if cfg.CROPTRAIN.USE_CROPS:
-                self._last_eval_results = self.test_crop(self.cfg, self.model, self.iter)
+                if "dota" in cfg.DATASETS.TEST[0]:
+                    self._last_eval_results = self.test_sliding_window_patches(self.cfg, self.model, self.iter)
+                else:
+                    self._last_eval_results = self.test_crop(self.cfg, self.model, self.iter)
             else:
-                self._last_eval_results = self.test(self.cfg, self.model)
+                if "dota" in cfg.DATASETS.TEST[0]:
+                    self._last_eval_results = self.test_sliding_window_patches(self.cfg, self.model, self.iter)
+                else:
+                    self._last_eval_results = self.test(self.cfg, self.model)
             return self._last_eval_results
 
         ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
@@ -271,7 +279,49 @@ class BaselineTrainer(DefaultTrainer):
                     )
                     results[dataset_name] = {}
                     continue
-            results_i = inference_on_dataset(model, data_loader, evaluator, cfg, iter)
+            results_i = inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter)
+            results[dataset_name] = results_i
+            if comm.is_main_process():
+                assert isinstance(
+                    results_i, dict
+                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
+                    results_i
+                )
+                logger.info("Evaluation results for {} in csv format:".format(dataset_name))
+                print_csv_format(results_i)
+
+        if len(results) == 1:
+            results = list(results.values())[0] 
+        return results
+
+
+    @classmethod
+    def test_sliding_window_patches(cls, cfg, model, iter, evaluators=None):
+        logger = logging.getLogger(__name__)
+        if isinstance(evaluators, DatasetEvaluator):
+            evaluators = [evaluators]
+        if evaluators is not None:
+            assert len(cfg.DATASETS.TEST) == len(evaluators), "{} != {}".format(
+                len(cfg.DATASETS.TEST), len(evaluators)
+            )
+
+        results = OrderedDict()
+        for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
+            data_loader = cls.build_test_loader(cfg, dataset_name)
+
+            if evaluators is not None:
+                evaluator = evaluators[idx]
+            else:
+                try:
+                    evaluator = cls.build_evaluator(cfg, dataset_name)
+                except NotImplementedError:
+                    logger.warn(
+                        "No evaluator found. Use `DefaultTrainer.test(evaluators=)`, "
+                        "or implement its `build_evaluator` method."
+                    )
+                    results[dataset_name] = {}
+                    continue
+            results_i = inference_dota(model, data_loader, evaluator, cfg, iter)
             results[dataset_name] = results_i
             if comm.is_main_process():
                 assert isinstance(

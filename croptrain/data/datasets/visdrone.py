@@ -19,14 +19,6 @@ logger = logging.getLogger(__name__)
 thing_classes = None
 id_map = None
 
-def bbox_inside_old(box, other_boxes):
-    x_inside_min = box[0] < other_boxes[:, 0]
-    y_inside_min = box[1] < other_boxes[:, 1]
-    x_inside_max = box[2] > other_boxes[:, 2]
-    y_inside_max = box[3] > other_boxes[:, 3]
-    inside_box = x_inside_min & x_inside_max & y_inside_min & y_inside_max
-    return inside_box
-
 def bbox_inside(box, other_boxes):
     ixmin = np.maximum(other_boxes[:, 0], box[0])
     iymin = np.maximum(other_boxes[:, 1], box[1])
@@ -93,6 +85,16 @@ def compute_one_stage_clusters(data_dict, bboxes, seg_areas, cfg, stage=1):
     return data_dict, new_boxes, np.array(new_seg_areas)
 
 
+def uniform_cropping(data_dict):
+    height, width = data_dict["height"], data_dict["width"]
+    new_boxes = np.zeros((0, 4), dtype=np.int32)
+    mid_x, mid_y = width//2, height//2
+    new_boxes = np.append(new_boxes, np.array([0, 0, mid_x, mid_y]).reshape(1, -1), axis=0)
+    new_boxes = np.append(new_boxes, np.array([mid_x, 0, width, mid_y]).reshape(1, -1), axis=0)
+    new_boxes = np.append(new_boxes, np.array([0, mid_y, mid_x, height]).reshape(1, -1), axis=0)
+    new_boxes = np.append(new_boxes, np.array([mid_x, mid_y, width, height]).reshape(1, -1), axis=0)
+    return new_boxes
+
 
 def compute_crops(data_dict, cfg):
     data_dict_this_image = copy.deepcopy(data_dict)
@@ -106,6 +108,7 @@ def compute_crops(data_dict, cfg):
     data_dict_this_image, new_boxes, new_seg_areas = compute_one_stage_clusters(data_dict_this_image, scaled_boxes, seg_areas, cfg, stage=1)
     #stage 2 - merging
     data_dict_this_image, new_boxes, new_seg_areas = compute_one_stage_clusters(data_dict_this_image, new_boxes, new_seg_areas, cfg, stage=2)
+    #new_boxes = uniform_cropping(data_dict_this_image)
 
     #extract boxes inside each cluster
     for i in range(len(new_boxes)):
@@ -129,12 +132,13 @@ def compute_crops(data_dict, cfg):
     #finally change the original datadict by adding new cluster classes and the corresponding boxes
     #if inside_flag.sum()!=0:
     #   data_dict["annotations"] = list(compress(data_dict["annotations"], inside_flag))
-    for i in range(len(new_boxes)):
-        crop_annotation = copy.deepcopy(data_dict["annotations"][0])
-        crop_annotation['category_id'] = 10
-        crop_annotation['bbox'] = list(new_boxes[i])
-        crop_annotation['iscrowd'] = 0
-        data_dict["annotations"].append(crop_annotation)
+    if cfg.CROPTRAIN.USE_CROPS:
+        for i in range(len(new_boxes)):
+            crop_annotation = copy.deepcopy(data_dict["annotations"][0])
+            crop_annotation['category_id'] = 10
+            crop_annotation['bbox'] = list(new_boxes[i])
+            crop_annotation['iscrowd'] = 0
+            data_dict["annotations"].append(crop_annotation)
 
     return data_dict, new_data_dicts
 
@@ -217,6 +221,7 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
         record["width"] = img_dict["width"]
         image_id = record["image_id"] = img_dict["id"]
         record["full_image"] = True
+        record["two_stage_crop"] = False
         record["crop_area"] = np.array([-1, -1, -1, -1], dtype=np.float32)
 
         objs = []

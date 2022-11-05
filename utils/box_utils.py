@@ -31,6 +31,20 @@ def bbox_scale(boxes, height, width):
     scaled_boxes = np.stack([x_min, y_min, x_max, y_max], axis=1)
     return scaled_boxes
 
+def bbox_scale_by_factor(boxes, height, width):
+    scale_factor = 10.0
+    x_min, y_min = boxes[:, 0], boxes[:, 1]
+    x_max, y_max = boxes[:, 2], boxes[:, 3]
+    width, height = x_max-x_min, y_max-y_min
+    cx, cy = x_min + width/2, y_min + height/2
+    width, height = width * scale_factor, height * scale_factor
+    x_min, x_max = cx - width/2, cx + width/2
+    y_min, y_max = cy - height/2, cy + height/2
+    x_min, y_min = x_min.clip(min=0), y_min.clip(min=0)
+    x_max, y_max = x_max.clip(max=width), y_max.clip(max=height)
+    scaled_boxes = np.stack([x_min, y_min, x_max, y_max], axis=1)
+    return scaled_boxes
+
 def uniform_cropping(data_dict):
     height, width = data_dict["height"], data_dict["width"]
     new_boxes = np.zeros((0, 4), dtype=np.int32)

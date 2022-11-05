@@ -17,9 +17,58 @@ from detectron2.structures import BoxMode, Boxes, pairwise_iou
 
 logger = logging.getLogger(__name__)
 
+def get_overlapping_sliding_window(data_dict, stepSize=1000, windowSize=1500):
+    height, width = data_dict["height"], data_dict["width"]
+    new_boxes = np.zeros((0, 4), dtype=np.int32)
+    for y in range(0, height-320, stepSize):
+        for x in range(0, width-320, stepSize):
+            ymax, xmax = y+windowSize, x+windowSize
+            if ymax>height:
+                ymax = height
+            if xmax>width:
+                xmax = width
+            new_boxes = np.append(new_boxes, np.array([x, y, xmax, ymax]).reshape(1, -1), axis=0)
+    return new_boxes
 
 
-def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_keys=None):
+def get_datadicts_from_sliding_windows(new_boxes, data_dict):
+    if len(data_dict["annotations"])==0:
+        return None
+    gt_boxes = np.vstack([obj['bbox'] for obj in data_dict["annotations"]])
+    new_data_dicts = []
+    #extract boxes inside each cluster
+    for i in range(len(new_boxes)):
+        isect_boxes, cluster_components = bbox_inside(new_boxes[i], gt_boxes)
+        data_dict_crop = copy.deepcopy(data_dict)
+        data_dict_crop['full_image'] = False
+        data_dict_crop["two_stage_crop"] = False
+        data_dict_crop['crop_area'] = new_boxes[i]
+        data_dict_crop["inner_crop_area"] = np.array([-1, -1, -1, -1], dtype=np.float32)
+        data_dict_crop['height'] = new_boxes[i, 3] - new_boxes[i, 1]
+        data_dict_crop['width'] = new_boxes[i, 2] - new_boxes[i, 0]
+        if "annotations" in data_dict:
+            x1, y1 = new_boxes[i, 0], new_boxes[i, 1]
+            ref_point = np.array([x1, y1, x1, y1], dtype=np.int32)
+            data_dict_crop['annotations'] =  list(compress(data_dict_crop['annotations'], cluster_components))
+            if len(data_dict_crop['annotations'])==0:
+                continue
+            for j, obj in enumerate(data_dict_crop['annotations']):
+                obj['bbox'] = list(isect_boxes[j] - ref_point)
+        new_data_dicts.append(data_dict_crop)
+    return new_data_dicts
+
+def  extract_crops_from_image(dataset_dicts, cfg):
+    old_dataset_dicts = []
+    new_dataset_dicts = []
+    for i, data_dict in enumerate(dataset_dicts):
+        updated_dict, crop_dicts = compute_crops(data_dict, cfg,  cluster_id=15, inner_crop=True)
+        new_dataset_dicts += crop_dicts
+        old_dataset_dicts.append(updated_dict)
+    total_dicts = old_dataset_dicts + new_dataset_dicts
+    return total_dicts
+
+
+def load_teldrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_keys=None):
     split = dataset_name.split("_")[-1]
     json_file = os.path.join(data_dir, "annotations_TelDrone_%s.json" % split)
     image_path = os.path.join(data_dir, split, "images")
@@ -38,7 +87,7 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
         cats = coco_api.loadCats(cat_ids)
         if cfg.CROPTRAIN.USE_CROPS and is_train:
             cats.append({'id':3, 'name':'cluster', 'supercategory':'none'})
-            cat_ids.append(11)
+            cat_ids.append(3)
         # The categories in a custom json file may not be sorted.
         thing_classes = [c["name"] for c in sorted(cats, key=lambda x: x["id"])]
         meta.set(thing_classes=thing_classes)
@@ -86,6 +135,7 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
         image_id = record["image_id"] = img_dict["id"]
         record["full_image"] = True
         record["crop_area"] = np.array([-1, -1, -1, -1], dtype=np.float32)
+        record["two_stage_crop"] = False
 
         objs = []
         for anno in anno_dict_list:
@@ -113,5 +163,42 @@ def load_visdrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
                     ) from e
             objs.append(obj)
         record["annotations"] = objs
-        dataset_dicts.append(record)
+        if  is_train:
+            #new_boxes = get_sliding_window_patches(record)
+            new_boxes = get_overlapping_sliding_window(record)
+            new_data_dicts = get_datadicts_from_sliding_windows(new_boxes, record)
+            if new_data_dicts:
+                dataset_dicts += new_data_dicts
+        else:        
+            dataset_dicts.append(record)
+    if cfg.CROPTRAIN.USE_CROPS and is_train:
+        dataset_dicts  = extract_crops_from_image(dataset_dicts, cfg)
     return dataset_dicts
+
+
+def register_teldrone(dataset_name, data_dir, cfg, is_train):
+    from pycocotools.coco import COCO
+    metadata = {}
+
+    # 1. register a function which returns dicts
+    DatasetCatalog.register(dataset_name, lambda: load_teldrone_instances(dataset_name, data_dir, cfg, is_train))
+
+    # 2. Optionally, add metadata about this dataset,
+    # since they might be useful in evaluation, visualization or logging
+    split = dataset_name.split("_")[-1]
+    json_file = os.path.join(data_dir, "annotations_DOTA_%s.json" % split)
+    image_root = os.path.join(data_dir, split, "images")
+    coco_api = COCO(json_file)
+    cat_ids = sorted(coco_api.getCatIds())
+    cats = coco_api.loadCats(cat_ids)
+    if cfg.CROPTRAIN.USE_CROPS and is_train:
+        cats.append({'id':3, 'name':'cluster', 'supercategory':'none'})
+        cat_ids.append(3)
+    # The categories in a custom json file may not be sorted.
+    thing_classes = [c["name"] for c in sorted(cats, key=lambda x: x["id"])]
+    id_map = {v: i for i, v in enumerate(cat_ids)}
+    MetadataCatalog.get(dataset_name).set(
+        json_file=json_file, image_root=image_root, evaluator_type="coco",
+        thing_classes=thing_classes,
+        thing_dataset_id_to_contiguous_id=id_map, **metadata
+    )

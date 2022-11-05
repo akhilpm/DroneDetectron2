@@ -72,7 +72,6 @@ def infer_on_image_and_crops(input_dicts, cluster_dicts, model, cfg):
     images_original = model.preprocess_image(input_dicts)
     features_original = model.backbone(images_original.tensor)
     proposals_original, _ = model.proposal_generator(images_original, features_original, None)
-    image_shapes = [(item.get("height"), item.get("width")) for item in input_dicts]
     #get detections from full image and project it to original image size
     boxes, scores = get_box_predictions(model, features_original, proposals_original)
     num_bbox_reg_classes = boxes[0].shape[1] // 4
@@ -138,7 +137,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
             start_compute_time = time.perf_counter()
             #new_boxes = get_sliding_window_patches(dataset_dicts[idx])
             new_boxes = get_overlapping_sliding_window(dataset_dicts[idx])
-            new_data_dicts = get_dict_from_crops(new_boxes, inputs[0], cfg.CROPTEST.CROPSIZE)
+            new_data_dicts = get_dict_from_crops(new_boxes, inputs[0], cfg.INPUT.MIN_SIZE_TEST)
             image_shapes = [(dataset_dicts[idx].get("height"), dataset_dicts[idx].get("width"))]
             boxes, scores = torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES*4).to(model.device), torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES+1).to(model.device)
             for data_dict in new_data_dicts:
@@ -146,7 +145,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                     outputs = model.inference(batched_inputs=[data_dict])
                     cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
                     cluster_boxes = outputs[0]["instances"][cluster_class_indices]
-                    cluster_boxes = cluster_boxes[cluster_boxes.scores>0.6]
+                    cluster_boxes = cluster_boxes[cluster_boxes.scores>0.7]
                 else:
                     cluster_boxes = []
                 #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
@@ -154,7 +153,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                 
                 if len(cluster_boxes)!=0:
                     #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
-                    cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTEST.CROPSIZE, inner_crop=True)
+                    cluster_dicts = get_dict_from_crops(cluster_boxes, data_dict, cfg.CROPTEST.CROPSIZE, inner_crop=True)
                     boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], cluster_dicts, model, cfg)
                 else:
                     boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], None, model, cfg)
@@ -253,9 +252,9 @@ def get_dict_from_crops(crops, input_dict, CROPSIZE, inner_crop=False):
         crop_dict['full_image'] = False
         if inner_crop:
             crop_dict["two_stage_crop"] = True
-            crop_dict["inner_crop_area"] = np.array([x1, y1, x2, y2])
+            crop_dict["inner_crop_area"] = np.array([x1, y1, x2, y2]).astype(np.int32)
         else:    
-            crop_dict['crop_area'] = np.array([x1, y1, x2, y2])
+            crop_dict['crop_area'] = np.array([x1, y1, x2, y2]).astype(np.int32)
         crop_region = read_image(crop_dict)
         crop_region = torch.as_tensor(np.ascontiguousarray(crop_region.transpose(2, 0, 1)))
         crop_region = transform(crop_region)

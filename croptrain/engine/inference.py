@@ -92,7 +92,7 @@ def infer_on_image_and_crops(input_dicts, cluster_dicts, model, cfg):
     return pred_instances[0]
 
 
-def inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter):
+def inference_with_crops(model, data_loader, evaluator, cfg, iter):
     from detectron2.utils.comm import get_world_size
     #dataset_dicts = get_detection_dataset_dicts(cfg.DATASETS.TEST, filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS)
 
@@ -138,7 +138,7 @@ def inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter):
             outputs = model.inference(batched_inputs=inputs)
             cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
             cluster_boxes = outputs[0]["instances"][cluster_class_indices]
-            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.6]
+            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.7]
 
             #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
             #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)

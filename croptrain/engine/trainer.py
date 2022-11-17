@@ -30,7 +30,7 @@ from detectron2.utils.logger import log_every_n_seconds
 from contextlib import ExitStack, contextmanager
 from croptrain.data.detection_utils import read_image
 from utils.plot_utils import plot_detections
-from croptrain.engine.inference import inference_on_dataset_with_crops
+from croptrain.engine.inference import inference_with_crops
 from detectron2.evaluation import inference_on_dataset
 from croptrain.data.build import (
     build_detection_semisup_train_loader,
@@ -279,7 +279,7 @@ class BaselineTrainer(DefaultTrainer):
                     )
                     results[dataset_name] = {}
                     continue
-            results_i = inference_on_dataset_with_crops(model, data_loader, evaluator, cfg, iter)
+            results_i = inference_with_crops(model, data_loader, evaluator, cfg, iter)
             results[dataset_name] = results_i
             if comm.is_main_process():
                 assert isinstance(

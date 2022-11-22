@@ -13,6 +13,7 @@ from detectron2.utils.file_io import PathManager
 from detectron2.structures import Boxes, BoxMode
 from fvcore.common.timer import Timer
 from detectron2.structures import BoxMode, Boxes, pairwise_iou
+from utils.box_utils import compute_crops, bbox_inside
 
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def  extract_crops_from_image(dataset_dicts, cfg):
     old_dataset_dicts = []
     new_dataset_dicts = []
     for i, data_dict in enumerate(dataset_dicts):
-        updated_dict, crop_dicts = compute_crops(data_dict, cfg,  cluster_id=15, inner_crop=True)
+        updated_dict, crop_dicts = compute_crops(data_dict, cfg,  cluster_id=2, inner_crop=True)
         new_dataset_dicts += crop_dicts
         old_dataset_dicts.append(updated_dict)
     total_dicts = old_dataset_dicts + new_dataset_dicts
@@ -164,7 +165,6 @@ def load_teldrone_instances(dataset_name, data_dir, cfg, is_train, extra_annotat
             objs.append(obj)
         record["annotations"] = objs
         if  is_train:
-            #new_boxes = get_sliding_window_patches(record)
             new_boxes = get_overlapping_sliding_window(record)
             new_data_dicts = get_datadicts_from_sliding_windows(new_boxes, record)
             if new_data_dicts:
@@ -186,7 +186,7 @@ def register_teldrone(dataset_name, data_dir, cfg, is_train):
     # 2. Optionally, add metadata about this dataset,
     # since they might be useful in evaluation, visualization or logging
     split = dataset_name.split("_")[-1]
-    json_file = os.path.join(data_dir, "annotations_DOTA_%s.json" % split)
+    json_file = os.path.join(data_dir, "annotations_TelDrone_%s.json" % split)
     image_root = os.path.join(data_dir, split, "images")
     coco_api = COCO(json_file)
     cat_ids = sorted(coco_api.getCatIds())

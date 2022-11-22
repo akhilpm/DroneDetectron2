@@ -79,6 +79,8 @@ def build_detection_semisup_train_loader(cfg, mapper=None):
         mapper = DatasetMapperDensityCrop(cfg, True)
     if "dota" in cfg.DATASETS.TRAIN[0] or "dota" in cfg.DATASETS.TEST[0]:
         mapper = DatasetMapperDensityCrop(cfg, True)
+    if "teldrone" in cfg.DATASETS.TRAIN[0] or "teldrone" in cfg.DATASETS.TEST[0]:
+        mapper = DatasetMapperDensityCrop(cfg, True)
     if mapper is None:
         mapper = DatasetMapper(cfg, True)
     dataset = MapDataset(dataset, mapper)

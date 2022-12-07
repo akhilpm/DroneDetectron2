@@ -121,7 +121,7 @@ python train_net.py \
 If you use Cascaded Zoom-in Detector in your research or wish to refer to the results published in the paper, please use the following BibTeX entry.
 
 ```BibTeX
-@inproceedings{liu2021unbiased,
+@inproceedings{meethal2022czdetector,
     title={Cascaded Zoom-in Detector for High Resolution Aerial Images},
     author={Meethal, Akhil and Granger, Eric and Pedersoli, Marco},
     booktitle={arxiv},

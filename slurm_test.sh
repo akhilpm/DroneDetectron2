@@ -2,7 +2,7 @@
 #SBATCH --time=02:30:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
-#SBATCH --mem=10G               # memory (per node)
+#SBATCH --mem=16G               # memory (per node)
 # set name of job
 #SBATCH --cpus-per-task=1
 #SBATCH --job-name=visdrone_test

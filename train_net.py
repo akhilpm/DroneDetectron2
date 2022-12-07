@@ -8,19 +8,14 @@ from detectron2.config import get_cfg
 from detectron2.engine import default_argument_parser, default_setup, launch
 from detectron2.modeling import GeneralizedRCNN
 
-from croptrain import add_croptrainer_config, add_ubteacher_config
-from croptrain.engine.trainer import UBTeacherTrainer, BaselineTrainer
+from croptrain import add_croptrainer_config
+from croptrain.engine.trainer import BaselineTrainer
 # hacky way to register
-from croptrain.modeling.meta_arch.rcnn import TwoStagePseudoLabGeneralizedRCNN
-from croptrain.modeling.meta_arch.retinanet import RetinaNet_D2
-from croptrain.modeling.proposal_generator.rpn import PseudoLabRPN
-from croptrain.modeling.roi_heads.roi_heads import StandardROIHeadsPseudoLab
 import croptrain.data.datasets.builtin
 from croptrain.data.datasets.visdrone import register_visdrone
 from croptrain.data.datasets.dota import register_dota
 from croptrain.data.datasets.teldrone import register_teldrone
 
-from croptrain.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 
 
 def setup(args):
@@ -29,7 +24,6 @@ def setup(args):
     """
     cfg = get_cfg()
     add_croptrainer_config(cfg)
-    add_ubteacher_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
@@ -43,10 +37,7 @@ def main(args):
         cfg.defrost()
         cfg.MODEL.DEVICE = 'cpu'
         cfg.freeze()
-    if cfg.SEMISUPNET.USE_SEMISUP:
-        Trainer = UBTeacherTrainer
-    else:
-        Trainer = BaselineTrainer
+    Trainer = BaselineTrainer
 
     if cfg.CROPTRAIN.USE_CROPS:
         cfg.defrost()
@@ -70,30 +61,20 @@ def main(args):
         register_teldrone(cfg.DATASETS.TEST[0], data_dir, cfg, False)
 
     if args.eval_only:
-        if cfg.SEMISUPNET.USE_SEMISUP:
-            model = Trainer.build_model(cfg)
-            model_teacher = Trainer.build_model(cfg)
-            ensem_ts_model = EnsembleTSModel(model_teacher, model)
-
-            DetectionCheckpointer(
-                ensem_ts_model, save_dir=cfg.OUTPUT_DIR
-            ).resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
-            res = Trainer.test(cfg, ensem_ts_model.modelTeacher)
+        model = Trainer.build_model(cfg)
+        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
+            cfg.MODEL.WEIGHTS, resume=args.resume
+        )
+        if cfg.CROPTRAIN.USE_CROPS:
+            if "dota" in cfg.DATASETS.TEST[0]:
+                res = Trainer.test_sliding_window_patches(cfg, model, 0)
+            else:    
+                res = Trainer.test_crop(cfg, model, 0)
         else:
-            model = Trainer.build_model(cfg)
-            DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-                cfg.MODEL.WEIGHTS, resume=args.resume
-            )
-            if cfg.CROPTRAIN.USE_CROPS:
-                if "dota" in cfg.DATASETS.TEST[0]:
-                    res = Trainer.test_sliding_window_patches(cfg, model, 0)
-                else:    
-                    res = Trainer.test_crop(cfg, model, 0)
+            if "dota" in cfg.DATASETS.TEST[0]:
+                res = Trainer.test_sliding_window_patches(cfg, model, 0)
             else:
-                if "dota" in cfg.DATASETS.TEST[0]:
-                    res = Trainer.test_sliding_window_patches(cfg, model, 0)
-                else:
-                    res = Trainer.test(cfg, model)
+                res = Trainer.test(cfg, model)
         return res
 
     trainer = Trainer(cfg)

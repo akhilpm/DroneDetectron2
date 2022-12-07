@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --time=23:50:00
+#SBATCH --time=19:50:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
-#SBATCH --mem=16G               # memory (per node)
+#SBATCH --mem=24G               # memory (per node)
 # set name of job
 #SBATCH --cpus-per-task=4
 #SBATCH --job-name=dota_train
@@ -27,4 +27,4 @@ cp -r $SLURM_TMPDIR/DOTA-val/images/ $SLURM_TMPDIR/DOTA/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/DOTA/annotations_DOTA_val.json $SLURM_TMPDIR/DOTA/
 
 
-python train_net.py --num-gpus 1 --config-file configs/Dota-Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/DOTA_FPN_NO_P2_1500
+python train_net.py --resume --num-gpus 1 --config-file configs/Dota-Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/DOTA_FPN_2000

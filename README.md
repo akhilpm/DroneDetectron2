@@ -7,7 +7,7 @@ This is the PyTorch implementation of our paper: <br>
 Akhil Meethal, Eric Granger, Marco Pedersoli<br>
 <br>
 
-[[arXiv](https://arxiv.org/abs/2102.09480)] [[OpenReview](https://openreview.net/forum?id=MJIve1zgR_)] [[Project](https://ycliu93.github.io/projects/unbiasedteacher.html)]
+[[arXiv](https://arxiv.org/abs/2102.09480)] [[Project](https://ycliu93.github.io/projects/unbiasedteacher.html)]
 
 <p align="center">
 <img src="teaser/base_diagram.png" width="85%">

@@ -40,7 +40,7 @@ Follow the [INSTALL.md](https://github.com/facebookresearch/detectron2/blob/mast
 
 1. Download VisDrone dataset
 
-Follow the instructions on [VisDrone page][https://github.com/VisDrone/VisDrone-Dataset]
+Follow the instructions on [VisDrone page](https://github.com/VisDrone/VisDrone-Dataset)
 
 2. Organize the dataset as following:
 
@@ -56,7 +56,7 @@ unbiased_teacher/
 
 3. Download DOTA dataset 
 
-Please follow the instructions on [DOTA page][https://captain-whu.github.io/DOTA/dataset.html]. Organize it the same way as above.
+Please follow the instructions on [DOTA page](https://captain-whu.github.io/DOTA/dataset.html). Organize it the same way as above.
 
 ## Training
 

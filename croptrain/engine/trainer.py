@@ -11,6 +11,8 @@ import numpy as np
 from collections import OrderedDict
 import copy
 import datetime
+from itertools import compress
+import random
 
 from torchvision.transforms import Resize
 import detectron2.utils.comm as comm
@@ -19,7 +21,10 @@ from detectron2.engine import DefaultTrainer, SimpleTrainer, TrainerBase
 from detectron2.engine.train_loop import AMPTrainer
 from detectron2.utils.events import EventStorage
 from detectron2.evaluation import COCOEvaluator,PascalVOCDetectionEvaluator, DatasetEvaluators
+from detectron2.data.dataset_mapper import DatasetMapper
 from detectron2.engine import hooks
+from detectron2.structures.boxes import Boxes
+from detectron2.structures.instances import Instances
 from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, print_csv_format
 from contextlib import ExitStack, contextmanager
@@ -225,13 +230,10 @@ class BaselineTrainer(DefaultTrainer):
 
         def test_and_save_results():
             if cfg.CROPTRAIN.USE_CROPS:
-                if "dota" in cfg.DATASETS.TEST[0]:
-                    self._last_eval_results = self.test_sliding_window_patches(self.cfg, self.model, self.iter)
-                else:
-                    self._last_eval_results = self.test_crop(self.cfg, self.model, self.iter)
+                self._last_eval_results = self.test_crop(self.cfg, self.model, self.iter)
             else:
                 if "dota" in cfg.DATASETS.TEST[0]:
-                    self._last_eval_results = self.test_sliding_window_patches(self.cfg, self.model, self.iter)
+                    self._last_eval_results = self.test_crop(self.cfg, self.model, self.iter)
                 else:
                     self._last_eval_results = self.test(self.cfg, self.model)
             return self._last_eval_results
@@ -269,49 +271,10 @@ class BaselineTrainer(DefaultTrainer):
                     )
                     results[dataset_name] = {}
                     continue
-            results_i = inference_with_crops(model, data_loader, evaluator, cfg, iter)
-            results[dataset_name] = results_i
-            if comm.is_main_process():
-                assert isinstance(
-                    results_i, dict
-                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
-                    results_i
-                )
-                logger.info("Evaluation results for {} in csv format:".format(dataset_name))
-                print_csv_format(results_i)
-
-        if len(results) == 1:
-            results = list(results.values())[0] 
-        return results
-
-
-    @classmethod
-    def test_sliding_window_patches(cls, cfg, model, iter, evaluators=None):
-        logger = logging.getLogger(__name__)
-        if isinstance(evaluators, DatasetEvaluator):
-            evaluators = [evaluators]
-        if evaluators is not None:
-            assert len(cfg.DATASETS.TEST) == len(evaluators), "{} != {}".format(
-                len(cfg.DATASETS.TEST), len(evaluators)
-            )
-
-        results = OrderedDict()
-        for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
-            data_loader = cls.build_test_loader(cfg, dataset_name)
-
-            if evaluators is not None:
-                evaluator = evaluators[idx]
+            if "dota" in cfg.DATASETS.TEST[0]:
+                results_i = inference_dota(model, data_loader, evaluator, cfg, iter)
             else:
-                try:
-                    evaluator = cls.build_evaluator(cfg, dataset_name)
-                except NotImplementedError:
-                    logger.warn(
-                        "No evaluator found. Use `DefaultTrainer.test(evaluators=)`, "
-                        "or implement its `build_evaluator` method."
-                    )
-                    results[dataset_name] = {}
-                    continue
-            results_i = inference_dota(model, data_loader, evaluator, cfg, iter)
+                results_i = inference_with_crops(model, data_loader, evaluator, cfg, iter)
             results[dataset_name] = results_i
             if comm.is_main_process():
                 assert isinstance(

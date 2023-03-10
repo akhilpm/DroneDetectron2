@@ -45,7 +45,7 @@ Follow the instructions on [VisDrone page](https://github.com/VisDrone/VisDrone-
 2. Organize the dataset as following:
 
 ```shell
-unbiased_teacher/
+croptrain/
 └── datasets/
     └── VisDrone/
         ├── train/
@@ -115,6 +115,12 @@ python train_net.py \
       --config-file configs/Base-RCNN-FPN.yaml \
       MODEL.WEIGHTS <your weight>.pth
 ```
+
+## Results comparison on the VisDrone dataset
+
+<p align="center">
+<img src="teaser/crop_rcnn_results.png" width="55%">
+</p>
 
 ## Citing Cascaded Zoom-in Detector
 

@@ -15,9 +15,8 @@ from detectron2.structures.instances import Instances
 from utils.box_utils import bbox_inside_old
 from utils.plot_utils import plot_detections
 from detectron2.utils.logger import log_every_n_seconds
-from detectron2.structures.boxes import Boxes, pairwise_iou
-from croptrain.data.detection_utils import read_image
-from croptrain.data.datasets.visdrone import compute_crops, uniform_cropping
+from utils.box_utils import compute_crops
+from utils.crop_utils import get_dict_from_crops
 from detectron2.data.build import get_detection_dataset_dicts
 from detectron2.modeling.roi_heads.fast_rcnn import fast_rcnn_inference
 logging.basicConfig(level=logging.INFO)
@@ -32,69 +31,7 @@ def prune_boxes_inside_cluster(cluster_dicts, boxes, scores):
         inside_boxes = bbox_inside_old(crop_area, boxes)
         boxes = boxes[~inside_boxes]
         scores = scores[~inside_boxes]
-    return [boxes], [scores]    
-
-def get_box_predictions(model, features, proposals):
-    features = [features[f] for f in model.roi_heads.box_in_features]
-    box_features = model.roi_heads.box_pooler(features, [x.proposal_boxes for x in proposals])
-    box_features = model.roi_heads.box_head(box_features)
-    predictions = model.roi_heads.box_predictor(box_features)
-    del box_features
-    boxes = model.roi_heads.box_predictor.predict_boxes(predictions, proposals)
-    scores = model.roi_heads.box_predictor.predict_probs(predictions, proposals)
-    return list(boxes), list(scores)
-
-def project_boxes_to_image(data_dict, crop_sizes, boxes):
-    num_bbox_reg_classes = boxes.shape[1] // 4
-    output_height, output_width = data_dict.get("height"), data_dict.get("width")
-    new_size = (output_height, output_width)
-    scale_x, scale_y = (
-        output_width / crop_sizes[1],
-        output_height / crop_sizes[0],
-    )
-    boxes = Boxes(boxes.reshape(-1, 4))
-    boxes.scale(scale_x, scale_y)
-    boxes.clip(new_size)
-    boxes = boxes.tensor
-
-    #shift to the proper position of the crop in the image
-    if not data_dict["full_image"]:
-        if data_dict["two_stage_crop"]:
-            x1, y1 = data_dict['inner_crop_area'][0], data_dict['inner_crop_area'][1]
-        else:
-            x1, y1 = data_dict["crop_area"][0], data_dict["crop_area"][1]
-        ref_point = torch.tensor([x1, y1, x1, y1]).to(boxes.device)
-        boxes = boxes + ref_point
-    boxes = boxes.view(-1, num_bbox_reg_classes * 4) # R x C.4
-    return boxes
-
-def infer_on_image_and_crops(input_dicts, cluster_dicts, model, cfg):
-    images_original = model.preprocess_image(input_dicts)
-    features_original = model.backbone(images_original.tensor)
-    proposals_original, _ = model.proposal_generator(images_original, features_original, None)
-    #get detections from full image and project it to original image size
-    boxes, scores = get_box_predictions(model, features_original, proposals_original)
-    num_bbox_reg_classes = boxes[0].shape[1] // 4
-    boxes[0] = project_boxes_to_image(input_dicts[0], images_original.image_sizes[0], boxes[0])
-    del features_original
-
-    if cluster_dicts:
-        for i, cluster_dict in enumerate(cluster_dicts):
-            images_crop = model.preprocess_image([cluster_dict])
-            features_crop = model.backbone(images_crop.tensor)
-            proposals_crop, _ = model.proposal_generator(images_crop, features_crop, None)
-            #get detections from crop and project it to wrt to original image size
-            boxes_crop, scores_crop = get_box_predictions(model, features_crop, proposals_crop)
-            boxes_crop = project_boxes_to_image(cluster_dict, images_crop.image_sizes[0], boxes_crop[0])
-            if cluster_dict["two_stage_crop"]:
-                x1, y1 = cluster_dict["crop_area"][0], cluster_dict["crop_area"][1]
-                ref_point = torch.tensor([x1, y1, x1, y1]).to(boxes_crop.device)
-                boxes_crop = boxes_crop.reshape(-1, 4)
-                boxes_crop = boxes_crop + ref_point
-                boxes_crop = boxes_crop.view(-1, num_bbox_reg_classes * 4)
-            boxes[0] = torch.cat([boxes[0], boxes_crop], dim=0)
-            scores[0] = torch.cat([scores[0], scores_crop[0]], dim=0)
-    return boxes, scores
+    return [boxes], [scores]
 
 
 def inference_dota(model, data_loader, evaluator, cfg, iter):
@@ -154,9 +91,9 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                 if len(cluster_boxes)!=0:
                     #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
                     cluster_dicts = get_dict_from_crops(cluster_boxes, data_dict, cfg.CROPTEST.CROPSIZE, inner_crop=True)
-                    boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], cluster_dicts, model, cfg)
+                    boxes_patch, scores_patch = model([data_dict], cluster_dicts, infer_on_crops=True)
                 else:
-                    boxes_patch, scores_patch = infer_on_image_and_crops([data_dict], None, model, cfg)
+                    boxes_patch, scores_patch = model([data_dict], None, infer_on_crops=True)
                 boxes = torch.cat([boxes, boxes_patch[0]], dim=0)
                 scores = torch.cat([scores, scores_patch[0]], dim=0)
             pred_instances, _ = fast_rcnn_inference([boxes], [scores], image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
@@ -236,62 +173,3 @@ def inference_context(model):
     model.train(training_mode)
 
 
-def get_dict_from_crops(crops, input_dict, CROPSIZE, inner_crop=False):
-    if len(crops)==0:
-        return []
-    if isinstance(crops, Instances):
-        crops = crops.pred_boxes.tensor.cpu().numpy().astype(np.int32)
-    transform = Resize(CROPSIZE)
-    crop_dicts, crop_scales = [], []
-    for i in range(len(crops)):
-        x1, y1, x2, y2 = crops[i, 0], crops[i, 1], crops[i, 2], crops[i, 3]
-        crop_size_min = min(x2-x1, y2-y1)
-        if crop_size_min<=0:
-            continue
-        crop_dict = copy.deepcopy(input_dict)
-        crop_dict['full_image'] = False
-        if inner_crop:
-            crop_dict["two_stage_crop"] = True
-            crop_dict["inner_crop_area"] = np.array([x1, y1, x2, y2]).astype(np.int32)
-        else:    
-            crop_dict['crop_area'] = np.array([x1, y1, x2, y2]).astype(np.int32)
-        crop_region = read_image(crop_dict)
-        crop_region = torch.as_tensor(np.ascontiguousarray(crop_region.transpose(2, 0, 1)))
-        crop_region = transform(crop_region)
-        crop_dict["image"] = crop_region
-        crop_dict["height"] = (y2-y1)
-        crop_dict["width"] = (x2-x1)
-        crop_dicts.append(crop_dict)
-        crop_scales.append(float(CROPSIZE)/crop_size_min)
-
-    return crop_dicts
-
-
-def merge_cluster_boxes(cluster_boxes, cfg):
-    if len(cluster_boxes)==0:
-        return None
-    if len(cluster_boxes)==1:
-        box = cluster_boxes.pred_boxes.tensor.cpu().numpy().astype(np.int32).reshape(1, -1)
-        return box
-
-    overlaps = pairwise_iou(cluster_boxes.pred_boxes, cluster_boxes.pred_boxes)
-    connectivity = (overlaps > cfg.CROPTRAIN.CLUSTER_THRESHOLD)
-    new_boxes = np.zeros((0, 4), dtype=np.int32)
-    while len(connectivity)>0:
-        connections = connectivity.sum(dim=1)
-        max_connected, max_connections = torch.argmax(connections), torch.max(connections)
-        cluster_components = torch.nonzero(connectivity[max_connected]).view(-1)
-        other_boxes = torch.nonzero(~connectivity[max_connected]).view(-1)
-        if max_connections==1:
-            box = cluster_boxes.pred_boxes.tensor[max_connected]
-            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
-        else:
-            cluster_members = cluster_boxes.pred_boxes.tensor[cluster_components]
-            x1, y1 = cluster_members[:, 0].min(), cluster_members[:, 1].min()
-            x2, y2 = cluster_members[:, 2].max(), cluster_members[:, 3].max()
-        crop_area = np.array([int(x1), int(y1), int(x2), int(y2)]).astype(np.int32)
-        new_boxes = np.append(new_boxes, crop_area.reshape(1, -1), axis=0)
-        connectivity = connectivity[:, other_boxes]
-        connectivity = connectivity[other_boxes, :]
-
-    return new_boxes

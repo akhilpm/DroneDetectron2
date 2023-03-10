@@ -7,6 +7,7 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.engine import default_argument_parser, default_setup, launch
 from detectron2.modeling import GeneralizedRCNN
+from croptrain.modeling.meta_arch.crop_rcnn import CropRCNN
 
 from croptrain import add_croptrainer_config
 from croptrain.engine.trainer import BaselineTrainer
@@ -42,7 +43,6 @@ def main(args):
     if cfg.CROPTRAIN.USE_CROPS:
         cfg.defrost()
         cfg.MODEL.ROI_HEADS.NUM_CLASSES += 1
-        cfg.MODEL.RETINANET.NUM_CLASSES += 1
         cfg.freeze()
     if "visdrone" in cfg.DATASETS.TRAIN[0] or "visdrone" in cfg.DATASETS.TEST[0]:
         data_dir = os.path.join(os.environ['SLURM_TMPDIR'], "VisDrone")
@@ -66,13 +66,10 @@ def main(args):
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
         if cfg.CROPTRAIN.USE_CROPS:
-            if "dota" in cfg.DATASETS.TEST[0]:
-                res = Trainer.test_sliding_window_patches(cfg, model, 0)
-            else:    
-                res = Trainer.test_crop(cfg, model, 0)
+            res = Trainer.test_crop(cfg, model, 0)
         else:
             if "dota" in cfg.DATASETS.TEST[0]:
-                res = Trainer.test_sliding_window_patches(cfg, model, 0)
+                res = Trainer.test_crop(cfg, model, 0)
             else:
                 res = Trainer.test(cfg, model)
         return res

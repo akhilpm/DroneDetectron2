@@ -5,9 +5,7 @@
 This is the PyTorch implementation of our paper: <br>
 **Cascaded Zoom-in Detector for High Resolution Aerial Images**<br>
 Akhil Meethal, Eric Granger, Marco Pedersoli<br>
-<br>
-
-[[arXiv](https://arxiv.org/)]
+[[arXiv](https://arxiv.org/abs/2303.08747)]
 
 <p align="center">
 <img src="teaser/base_diagram.png" width="85%">

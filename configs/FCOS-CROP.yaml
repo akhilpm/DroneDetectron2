@@ -1,0 +1,42 @@
+MODEL:
+  META_ARCHITECTURE: "CROP_FCOS"
+  WEIGHTS: "/home/akhil135/PhD/DroneDetectron2/pretrained_models/R-50.pkl"
+  BACKBONE:
+    NAME: "build_retinanet_resnet_fpn_backbone"
+  RESNETS:
+    OUT_FEATURES: ["res3", "res4", "res5"]
+    DEPTH: 50
+  FPN:
+    IN_FEATURES: ["res3", "res4", "res5"]
+  FCOS:
+    IN_FEATURES: ["p3", "p4", "p5", "p6", "p7"]
+    NUM_CLASSES: 10
+    SCORE_THRESH_TEST: 0.001
+
+DATASETS:
+  TRAIN: ("visdrone_2019_train",)
+  TEST: ("visdrone_2019_val",)
+DATALOADER:
+  NUM_WORKERS: 4
+  SUP_PERCENT: 100.0
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.01
+  STEPS: (50000, 70000)
+  MAX_ITER: 90000
+  CHECKPOINT_PERIOD: 3000
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "norm"
+    CLIP_VALUE: 35.0
+INPUT:
+  MIN_SIZE_TRAIN: (800, 900, 1000, 1100, 1200)
+  MAX_SIZE_TRAIN: 1999
+  MIN_SIZE_TEST: 1200
+  MAX_SIZE_TEST: 1999
+VERSION: 2
+TEST:
+  EVAL_PERIOD: 3000
+  DETECTIONS_PER_IMAGE: 800
+CROPTRAIN:
+  USE_CROPS: True

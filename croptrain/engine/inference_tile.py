@@ -91,7 +91,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                 if len(cluster_boxes)!=0:
                     #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
                     cluster_dicts = get_dict_from_crops(cluster_boxes, data_dict, cfg.CROPTEST.CROPSIZE, inner_crop=True)
-                    boxes_patch, scores_patch = model([data_dict], cluster_dicts, infer_on_crops=True)
+                    boxes_patch, scores_patch = model([data_dict], cluster_inputs=cluster_dicts, infer_on_crops=True)
                 else:
                     boxes_patch, scores_patch = model([data_dict], None, infer_on_crops=True)
                 boxes = torch.cat([boxes, boxes_patch[0]], dim=0)

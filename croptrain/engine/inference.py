@@ -77,27 +77,9 @@ def inference_with_crops(model, data_loader, evaluator, cfg, iter):
                 total_eval_time = 0
 
             start_compute_time = time.perf_counter()
-            image_shapes = [(item.get("height"), item.get("width")) for item in inputs]
-            outputs = model(inputs)
-            cluster_class_indices = (outputs[0]["instances"].pred_classes==cluster_class)
-            cluster_boxes = outputs[0]["instances"][cluster_class_indices]
-            cluster_boxes = cluster_boxes[cluster_boxes.scores>0.7]
-
-            #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
-            #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)
-            
-            if len(cluster_boxes)!=0:
-                #cluster_boxes = merge_cluster_boxes(cluster_boxes, cfg)
-                cluster_dicts = get_dict_from_crops(cluster_boxes, inputs[0], cfg.CROPTEST.CROPSIZE)
-                boxes, scores = model(inputs, cluster_dicts, infer_on_crops=True)
-            else:
-                boxes, scores = model(inputs, None, infer_on_crops=True)
-            pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
-                                    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST, cfg.CROPTEST.DETECTIONS_PER_IMAGE)
-            pred_instances = pred_instances[0]
-            pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]
-            all_outputs = [{"instances": pred_instances}]
-            
+            #_, crop_dicts = compute_crops(dataset_dicts[idx], cfg)
+            #crop_boxes = np.array([item['crop_area'] for item in crop_dicts]).reshape(-1, 4)
+            all_outputs = model(inputs, infer_on_crops=True)
             #if idx%100==0:
             #    plot_detections(pred_instances.to("cpu"), cluster_boxes, inputs[0], evaluator._metadata, cfg, iter)
             if torch.cuda.is_available():

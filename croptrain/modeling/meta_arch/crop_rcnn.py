@@ -101,7 +101,10 @@ class CropRCNN(GeneralizedRCNN):
         crop_boxes = pred_instances[0][crop_class_indices]
         crop_boxes = crop_boxes[crop_boxes.scores>0.75]
         if len(crop_boxes)!=0:
-            crop_dicts = get_dict_from_crops(crop_boxes, inputs[0], CROPSIZE)
+            if inputs[0]["full_image"]:
+                crop_dicts = get_dict_from_crops(crop_boxes, inputs[0], CROPSIZE)
+            else:
+                crop_dicts = get_dict_from_crops(crop_boxes, inputs[0], CROPSIZE=CROPSIZE, inner_crop=True)    
             for i, crop_dict in enumerate(crop_dicts):
                 images_crop = self.preprocess_image([crop_dict])
                 features_crop = self.backbone(images_crop.tensor)

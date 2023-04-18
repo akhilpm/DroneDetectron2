@@ -86,8 +86,6 @@ class CropRCNN(GeneralizedRCNN):
         assert not self.training
         crop_class = self.roi_heads.num_classes-1
         image_shapes = [(item.get("height"), item.get("width")) for item in inputs]
-        #boxes, scores = torch.zeros(0, self.roi_heads.num_classes*4).to(self.device), torch.zeros(0, self.roi_heads.num_classes+1).to(self.device)
-        #outputs = self.inference(inputs)
         images_original = self.preprocess_image(inputs)
         features_original = self.backbone(images_original.tensor)
         proposals_original, _ = self.proposal_generator(images_original, features_original, None)
@@ -114,6 +112,8 @@ class CropRCNN(GeneralizedRCNN):
                 boxes_crop = project_boxes_to_image(crop_dict, images_crop.image_sizes[0], boxes_crop[0])
                 boxes[0] = torch.cat([boxes[0], boxes_crop], dim=0)
                 scores[0] = torch.cat([scores[0], scores_crop[0]], dim=0)
+        if not inputs[0]["full_image"]:
+            return boxes, scores
         pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, self.roi_heads.box_predictor.test_score_thresh, \
                                 self.roi_heads.box_predictor.test_nms_thresh, self.roi_heads.box_predictor.test_topk_per_image)
         pred_instances = pred_instances[0]

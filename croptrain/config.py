@@ -24,5 +24,5 @@ def add_croptrainer_config(cfg):
     # dataloader
     # supervision level
     _C.DATALOADER.SUP_PERCENT = 100.0  # 5 = 5% dataset as labeled set
-    _C.DATALOADER.RANDOM_DATA_SEED = 0  # random seed to read data
+    _C.DATALOADER.RANDOM_DATA_SEED = 42  # random seed to read data
     _C.DATALOADER.RANDOM_DATA_SEED_PATH = "dataseed/COCO_supervision.txt"

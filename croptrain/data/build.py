@@ -27,12 +27,13 @@ This file contains the default logic to build a dataloader for training or testi
 """
 
 
-def divide_label_unlabel(dataset_dicts, SupPercent):
+def divide_label_unlabel(dataset_dicts, cfg):
 
     num_all = len(dataset_dicts)
-    num_label = int(SupPercent / 100.0 * num_all)
+    num_label = int(cfg.DATALOADER.SUP_PERCENT / 100.0 * num_all)
 
     # generate a permutation of images
+    np.random.seed(cfg.DATALOADER.RANDOM_DATA_SEED)
     random_perm_index = np.random.permutation(num_all)
 
     label_dicts = []
@@ -64,7 +65,7 @@ def build_detection_train_loader(cfg, mapper=None):
     # Divide into labeled and unlabeled sets according to supervision percentage
     label_dicts, unlabel_dicts = divide_label_unlabel(
         dataset_dicts,
-        cfg.DATALOADER.SUP_PERCENT
+        cfg
     )
 
     dataset = DatasetFromList(label_dicts, copy=False)

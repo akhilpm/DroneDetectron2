@@ -78,7 +78,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
             image_shapes = [(dataset_dicts[idx].get("height"), dataset_dicts[idx].get("width"))]
             boxes, scores = torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES*4).to(model.device), torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES+1).to(model.device)
             for data_dict in new_data_dicts:
-                boxes_patch, scores_patch = model([data_dict], infer_on_crops=True)
+                boxes_patch, scores_patch = model([data_dict], infer_on_crops=True, cfg=cfg)
                 #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
                 #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)
                 boxes = torch.cat([boxes, boxes_patch[0]], dim=0)

@@ -15,6 +15,7 @@ class CropRCNN(GeneralizedRCNN):
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]],
         crop_size: Optional[int] = 512,
         infer_on_crops: bool = False,
+        cfg = None
     ):
         """
         Args:
@@ -40,7 +41,7 @@ class CropRCNN(GeneralizedRCNN):
         """
         if not self.training:
             if infer_on_crops:
-                return self.infer_on_image_and_crops(batched_inputs, crop_size)
+                return self.infer_on_image_and_crops(batched_inputs, cfg, crop_size)
             else:
                 return self.inference(batched_inputs)
 
@@ -81,7 +82,7 @@ class CropRCNN(GeneralizedRCNN):
         scores = self.roi_heads.box_predictor.predict_probs(predictions, proposals)
         return list(boxes), list(scores)
 
-    def infer_on_image_and_crops(self, inputs, CROPSIZE=512):
+    def infer_on_image_and_crops(self, inputs, cfg, CROPSIZE=512):
         assert len(inputs)==1, "Only one image per inference is supported!"
         assert not self.training
         crop_class = self.roi_heads.num_classes-1
@@ -93,6 +94,8 @@ class CropRCNN(GeneralizedRCNN):
         boxes, scores = self.get_box_predictions(features_original, proposals_original)
         boxes[0] = project_boxes_to_image(inputs[0], images_original.image_sizes[0], boxes[0])
         del features_original
+        if not cfg.CROPTRAIN.USE_CROPS:
+            return boxes, scores
         pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, self.roi_heads.box_predictor.test_score_thresh, \
                                 self.roi_heads.box_predictor.test_nms_thresh, self.roi_heads.box_predictor.test_topk_per_image)
         crop_class_indices = (pred_instances[0].pred_classes==crop_class)

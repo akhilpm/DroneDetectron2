@@ -79,7 +79,7 @@ def inference_with_crops(model, data_loader, evaluator, cfg, iter):
             start_compute_time = time.perf_counter()
             #_, crop_dicts = compute_crops(dataset_dicts[idx], cfg)
             #crop_boxes = np.array([item['crop_area'] for item in crop_dicts]).reshape(-1, 4)
-            all_outputs = model(inputs, infer_on_crops=True)
+            all_outputs = model(inputs, infer_on_crops=True, cfg=cfg)
             #if idx%100==0:
             #    plot_detections(pred_instances.to("cpu"), cluster_boxes, inputs[0], evaluator._metadata, cfg, iter)
             if torch.cuda.is_available():

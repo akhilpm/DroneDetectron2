@@ -1,5 +1,5 @@
 MODEL:
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  META_ARCHITECTURE: "CropRCNN"
   WEIGHTS: "/home/akhil135/PhD/DroneDetectron2/pretrained_models/R-50.pkl"
   BACKBONE:
     NAME: "build_retinanet_resnet_fpn_backbone"

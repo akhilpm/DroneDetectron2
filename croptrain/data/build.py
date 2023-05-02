@@ -1,6 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import logging
 import numpy as np
+import json
+import os
 import torch.utils.data
 from detectron2.data.common import (
     DatasetFromList,
@@ -28,23 +30,29 @@ This file contains the default logic to build a dataloader for training or testi
 
 
 def divide_label_unlabel(dataset_dicts, cfg):
-
-    num_all = len(dataset_dicts)
+    dataset_name = cfg.DATASETS.TRAIN[0].split("_")[0]
+    seed_file = os.path.join("dataseed", dataset_name + "_filenames.txt")
+    with open(seed_file) as f:
+        file_names = json.load(f)
+    num_all = len(file_names["imagenames"])
     num_label = int(cfg.DATALOADER.SUP_PERCENT / 100.0 * num_all)
 
     # generate a permutation of images
     np.random.seed(cfg.DATALOADER.RANDOM_DATA_SEED)
     random_perm_index = np.random.permutation(num_all)
+    shuffled_images = [file_names["imagenames"][x] for x in random_perm_index]
+    labeled_image_ids = shuffled_images[:num_label]
 
     label_dicts = []
     unlabel_dicts = []
 
     for i in range(len(dataset_dicts)):
-        if i < num_label:
-            label_dicts.append(dataset_dicts[random_perm_index[i]])
+        file_name = dataset_dicts[i]["file_name"].split('/')[-1]
+        #print(file_name)
+        if file_name in labeled_image_ids:
+            label_dicts.append(dataset_dicts[i])
         else:
-            unlabel_dicts.append(dataset_dicts[random_perm_index[i]])
-
+            unlabel_dicts.append(dataset_dicts[i])
     return label_dicts, unlabel_dicts
 
 

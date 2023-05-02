@@ -116,7 +116,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                         f"Total: {total_seconds_per_iter:.4f} s/iter. "
                         f"ETA={eta}"
                     ),
-                    n=5,
+                    n=60,
                 )
             start_data_time = time.perf_counter()
 

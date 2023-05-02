@@ -6,6 +6,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.utils.file_io import PathManager
 import contextlib
 import copy
+import json
 from itertools import compress
 from fvcore.common.timer import Timer
 import logging
@@ -143,9 +144,11 @@ def load_dota_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_
 
     dataset_dicts = []
     ann_keys = ["iscrowd", "bbox", "category_id"] + (extra_annotation_keys or [])
+    file_names = []
     for k, (img_dict, anno_dict_list) in enumerate(imgs_anns):
         record = {}
         record["file_name"] = os.path.join(image_path, img_dict["file_name"])
+        file_names.append(img_dict["file_name"])
         record["height"] = img_dict["height"]
         record["width"] = img_dict["width"]
         image_id = record["image_id"] = img_dict["id"]
@@ -185,6 +188,11 @@ def load_dota_instances(dataset_name, data_dir, cfg, is_train, extra_annotation_
                 dataset_dicts += new_data_dicts
         else:        
             dataset_dicts.append(record)
+    dataset_name = cfg.DATASETS.TRAIN[0].split("_")[0]
+    seed_file = os.path.join("dataseed", dataset_name + "_filenames.txt")
+    filename_dict = {"imagenames": file_names}
+    with open(seed_file, "w") as f:
+        json.dump(filename_dict, f)
     if cfg.CROPTRAIN.USE_CROPS and is_train:
         dataset_dicts  = extract_crops_from_image(dataset_dicts, cfg)
     return dataset_dicts

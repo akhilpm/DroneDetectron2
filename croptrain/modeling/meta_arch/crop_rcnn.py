@@ -93,14 +93,14 @@ class CropRCNN(GeneralizedRCNN):
         #get detections from full image and project it to original image size
         boxes, scores = self.get_box_predictions(features_original, proposals_original)
         boxes[0] = project_boxes_to_image(inputs[0], images_original.image_sizes[0], boxes[0])
-        del features_original
+        del images_original,features_original
         if not cfg.CROPTRAIN.USE_CROPS:
             return boxes, scores
         pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, self.roi_heads.box_predictor.test_score_thresh, \
                                 self.roi_heads.box_predictor.test_nms_thresh, self.roi_heads.box_predictor.test_topk_per_image)
         crop_class_indices = (pred_instances[0].pred_classes==crop_class)
         crop_boxes = pred_instances[0][crop_class_indices]
-        crop_boxes = crop_boxes[crop_boxes.scores>0.75]
+        crop_boxes = crop_boxes[crop_boxes.scores>0.85]
         if len(crop_boxes)!=0:
             if inputs[0]["full_image"]:
                 crop_dicts = get_dict_from_crops(crop_boxes, inputs[0], CROPSIZE)
@@ -115,6 +115,7 @@ class CropRCNN(GeneralizedRCNN):
                 boxes_crop = project_boxes_to_image(crop_dict, images_crop.image_sizes[0], boxes_crop[0])
                 boxes[0] = torch.cat([boxes[0], boxes_crop], dim=0)
                 scores[0] = torch.cat([scores[0], scores_crop[0]], dim=0)
+                del images_crop, features_crop    
         if not inputs[0]["full_image"]:
             return boxes, scores
         pred_instances, _ = fast_rcnn_inference(boxes, scores, image_shapes, self.roi_heads.box_predictor.test_score_thresh, \

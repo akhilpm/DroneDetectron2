@@ -86,7 +86,8 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
             pred_instances, _ = fast_rcnn_inference([boxes], [scores], image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
                                     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST, cfg.CROPTEST.DETECTIONS_PER_IMAGE)
             pred_instances = pred_instances[0]
-            pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]
+            if cfg.CROPTRAIN.USE_CROPS:
+                pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]
             all_outputs = [{"instances": pred_instances}]
             
             #if idx%100==0:

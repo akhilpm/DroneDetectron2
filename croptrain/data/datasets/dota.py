@@ -34,7 +34,7 @@ def get_sliding_window_patches(data_dict):
     return new_boxes
 
 
-def get_overlapping_sliding_window(data_dict, stepSize=1000, windowSize=1500):
+def get_overlapping_sliding_window(data_dict, stepSize=1500, windowSize=2000):
     height, width = data_dict["height"], data_dict["width"]
     new_boxes = np.zeros((0, 4), dtype=np.int32)
     for y in range(0, height-320, stepSize):

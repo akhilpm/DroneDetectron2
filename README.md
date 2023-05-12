@@ -7,6 +7,8 @@ This is the PyTorch implementation of our paper: <br>
 Akhil Meethal, Eric Granger, Marco Pedersoli<br>
 [[arXiv](https://arxiv.org/abs/2303.08747)]
 
+Accepted at: CVPRw 2023 ([EarthVison Workshop](https://www.grss-ieee.org/events/earthvision-2023/?tab=aims-and-scope) oragnized by IEEE GRSS)
+
 <p align="center">
 <img src="teaser/base_diagram.png" width="85%">
 </p>

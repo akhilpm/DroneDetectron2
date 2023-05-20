@@ -153,7 +153,7 @@ class CROP_FCOS(FCOS):
             all_preds.pred_boxes.tensor, all_preds.scores, all_preds.pred_classes, self.test_nms_thresh
         )
         all_preds = all_preds[keep[: self.max_detections_per_image]]
-        all_preds = all_preds[all_preds.pred_classes!=cluster_class]
+        #all_preds = all_preds[all_preds.pred_classes!=cluster_class]
         results = [{"instances": all_preds}]
         return results
 

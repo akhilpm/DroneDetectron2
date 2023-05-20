@@ -9,9 +9,8 @@ from fvcore.nn.precise_bn import get_bn_modules
 import numpy as np
 from collections import OrderedDict
 import copy
-import random
-import datetime
 from itertools import compress
+from croptrain.engine.inference_tile import inference_dota
 
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
@@ -19,7 +18,6 @@ from detectron2.engine import DefaultTrainer, SimpleTrainer, TrainerBase
 from detectron2.engine.train_loop import AMPTrainer
 from detectron2.utils.events import EventStorage
 from detectron2.evaluation import COCOEvaluator, verify_results, PascalVOCDetectionEvaluator, DatasetEvaluators
-from detectron2.data.dataset_mapper import DatasetMapper
 from detectron2.engine import hooks
 from detectron2.structures.boxes import Boxes
 from detectron2.structures.instances import Instances
@@ -30,11 +28,9 @@ from contextlib import ExitStack, contextmanager
 from utils.plot_utils import plot_detections
 from croptrain.engine import inference_fcos
 from croptrain.data.build import (
-    build_detection_semisup_train_loader,
+    build_detection_train_loader,
     build_detection_test_loader,
-    build_detection_semisup_train_loader_two_crops,
 )
-from croptrain.data.dataset_mapper import DatasetMapperTwoCropSeparate
 from croptrain.engine.hooks import LossEvalHook
 from croptrain.checkpoint.detection_checkpoint import DetectionTSCheckpointer
 from croptrain.solver.build import build_lr_scheduler
@@ -191,7 +187,7 @@ class BaselineTrainer(DefaultTrainer):
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_semisup_train_loader(cfg, mapper=None)
+        return build_detection_train_loader(cfg, mapper=None)
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):

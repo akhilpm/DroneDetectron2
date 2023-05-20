@@ -8,6 +8,7 @@ from detectron2.config import get_cfg
 from detectron2.engine import default_argument_parser, default_setup, launch
 from detectron2.modeling import GeneralizedRCNN
 from croptrain.modeling.meta_arch.crop_rcnn import CropRCNN
+from croptrain.engine.predictor import DroneDetPredictor
 
 from croptrain import add_croptrainer_config
 from croptrain.engine.trainer import BaselineTrainer
@@ -73,6 +74,10 @@ def main(args):
             else:
                 res = Trainer.test(cfg, model)
         return res
+    if cfg.CROPTEST.PREDICT_ONLY:
+        predictor = DroneDetPredictor(cfg)
+        predictor("image")
+        return
 
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)

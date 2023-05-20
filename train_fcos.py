@@ -8,15 +8,14 @@ from detectron2.config import get_cfg
 from detectron2.engine import default_argument_parser, default_setup, launch
 from detectron2.modeling import GeneralizedRCNN
 
-from croptrain import add_croptrainer_config, add_ubteacher_config, add_fcos_config
+from croptrain import add_croptrainer_config, add_fcos_config
 from croptrain.engine.trainer_fcos import BaselineTrainer
+from croptrain.engine.predictor import DroneDetPredictor
 # hacky way to register
 from croptrain.modeling.meta_arch.crop_fcos import CROP_FCOS
 import croptrain.data.datasets.builtin
 from croptrain.data.datasets.visdrone import register_visdrone
 from croptrain.data.datasets.dota import register_dota
-
-from croptrain.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 
 
 def setup(args):
@@ -69,6 +68,11 @@ def main(args):
             else:
                 res = Trainer.test(cfg, model)
         return res
+
+    if cfg.CROPTEST.PREDICT_ONLY:
+        predictor = DroneDetPredictor(cfg)
+        predictor("image")
+        return
 
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)

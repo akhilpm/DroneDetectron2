@@ -1,5 +1,4 @@
 from turtle import width
-from croptrain.data.datasets.dota import get_datadicts_from_sliding_windows, get_sliding_window_patches, get_overlapping_sliding_window
 import numpy as np
 import torch
 from detectron2.evaluation import DatasetEvaluator
@@ -22,21 +21,22 @@ from detectron2.modeling.roi_heads.fast_rcnn import fast_rcnn_inference
 logging.basicConfig(level=logging.INFO)
 
 
-def prune_boxes_inside_cluster(cluster_dicts, boxes, scores):
-    #num_classes = (boxes.shape[1] // 4) + 1
+def prune_boxes_inside_cluster(cluster_dicts, boxes, scores, num_classes):
     boxes = boxes[0].reshape(-1, 4)
-    scores = scores[0]
+    scores = scores[0].flatten()
     for cluster_dict in cluster_dicts:
         crop_area = cluster_dict["crop_area"]
         inside_boxes = bbox_enclose(crop_area, boxes)
-        boxes = boxes[~inside_boxes]
-        scores = scores[~inside_boxes]
+        boxes[inside_boxes] = 0.0
+        scores[inside_boxes] = 0.0
+    boxes = boxes.view(-1, num_classes * 4)
+    scores = scores.view(-1, num_classes)
     return [boxes], [scores]
 
 
-def inference_dota(model, data_loader, evaluator, cfg, iter):
+def inference_with_crops(model, data_loader, evaluator, cfg, iter):
     from detectron2.utils.comm import get_world_size
-    dataset_dicts = get_detection_dataset_dicts(cfg.DATASETS.TEST, filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS)
+    #dataset_dicts = get_detection_dataset_dicts(cfg.DATASETS.TEST, filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS)
 
     num_devices = get_world_size()
     logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
     total_data_time = 0
     total_compute_time = 0
     total_eval_time = 0
-    cluster_class = cfg.MODEL.ROI_HEADS.NUM_CLASSES - 1
+    cluster_class = cfg.MODEL.FCOS.NUM_CLASSES - 1
     with ExitStack() as stack:
         if isinstance(model, torch.nn.Module):
             stack.enter_context(inference_context(model))
@@ -72,24 +72,8 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                 total_eval_time = 0
 
             start_compute_time = time.perf_counter()
-            #new_boxes = get_sliding_window_patches(dataset_dicts[idx])
-            new_boxes = get_overlapping_sliding_window(dataset_dicts[idx])
-            new_data_dicts = get_dict_from_crops(new_boxes, inputs[0], cfg.INPUT.MIN_SIZE_TEST)
-            image_shapes = [(dataset_dicts[idx].get("height"), dataset_dicts[idx].get("width"))]
-            boxes, scores = torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES*4).to(model.device), torch.zeros(0, cfg.MODEL.ROI_HEADS.NUM_CLASSES+1).to(model.device)
-            for data_dict in new_data_dicts:
-                boxes_patch, scores_patch = model([data_dict], infer_on_crops=True, cfg=cfg)
-                #_, clus_dicts = compute_crops(dataset_dicts[idx], cfg)
-                #cluster_boxes = np.array([item['crop_area'] for item in clus_dicts]).reshape(-1, 4)
-                boxes = torch.cat([boxes, boxes_patch[0]], dim=0)
-                scores = torch.cat([scores, scores_patch[0]], dim=0)
-            pred_instances, _ = fast_rcnn_inference([boxes], [scores], image_shapes, cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST, \
-                                    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST, cfg.CROPTEST.DETECTIONS_PER_IMAGE)
-            pred_instances = pred_instances[0]
-            if cfg.CROPTRAIN.USE_CROPS:
-                pred_instances = pred_instances[pred_instances.pred_classes!=cluster_class]
-            all_outputs = [{"instances": pred_instances}]
-            
+            orig_image_size = (inputs[0].get("height"), inputs[0].get("width"))
+            outputs = model(inputs, orig_image_size, infer_on_crops=True)          
             #if idx%100==0:
             #    plot_detections(pred_instances.to("cpu"), cluster_boxes, inputs[0], evaluator._metadata, cfg, iter)
             if torch.cuda.is_available():
@@ -97,7 +81,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
             total_compute_time += time.perf_counter() - start_compute_time
 
             start_eval_time = time.perf_counter()
-            evaluator.process(inputs, all_outputs)
+            evaluator.process(inputs, outputs)
             total_eval_time += time.perf_counter() - start_eval_time
 
             iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
@@ -117,7 +101,7 @@ def inference_dota(model, data_loader, evaluator, cfg, iter):
                         f"Total: {total_seconds_per_iter:.4f} s/iter. "
                         f"ETA={eta}"
                     ),
-                    n=60,
+                    n=5,
                 )
             start_data_time = time.perf_counter()
 
@@ -159,5 +143,4 @@ def inference_context(model):
     model.eval()
     yield
     model.train(training_mode)
-
 

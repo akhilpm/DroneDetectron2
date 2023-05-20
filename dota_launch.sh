@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=19:50:00
+#SBATCH --time=9:50:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
 #SBATCH --mem=24G               # memory (per node)
@@ -26,5 +26,6 @@ unzip -q ~/projects/def-mpederso/akhil135/data_Aerial/DOTA/DOTA-val.zip -d $SLUR
 cp -r $SLURM_TMPDIR/DOTA-val/images/ $SLURM_TMPDIR/DOTA/val
 cp ~/projects/def-mpederso/akhil135/data_Aerial/DOTA/annotations_DOTA_val.json $SLURM_TMPDIR/DOTA/
 
-
-python train_net.py --resume --num-gpus 1 --config-file configs/Dota-Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/DOTA_FPN_2000
+#python train_net.py --resume --num-gpus 1 --config-file configs/Dota-RCNN-FPN-CROP.yaml OUTPUT_DIR ~/scratch/detectron2/DOTA_CROP_1
+python train_net.py --resume --num-gpus 1 --config-file configs/Dota-Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/DOTA_1
+#python train_net.py --eval-only --num-gpus 1 --config-file configs/Dota-RCNN-FPN-CROP.yaml MODEL.WEIGHTS /home/akhil135/scratch/detectron2/DOTA_CROP_10/model_0008999.pth

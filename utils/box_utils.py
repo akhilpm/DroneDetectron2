@@ -4,13 +4,13 @@ import copy
 import torch
 from detectron2.structures import BoxMode, Boxes, pairwise_iou
 
-def bbox_inside_old(box, other_boxes):
+def bbox_enclose(box, other_boxes):
     x_inside_min = box[0] < other_boxes[:, 0]
     y_inside_min = box[1] < other_boxes[:, 1]
     x_inside_max = box[2] > other_boxes[:, 2]
     y_inside_max = box[3] > other_boxes[:, 3]
     inside_box = x_inside_min & x_inside_max & y_inside_min & y_inside_max
-    return inside_box
+    return other_boxes[inside_box], inside_box
 
 def bbox_inside(box, other_boxes):
     ixmin = np.maximum(other_boxes[:, 0], box[0])

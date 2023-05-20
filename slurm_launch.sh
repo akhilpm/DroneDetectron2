@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=11:50:00
+#SBATCH --time=16:50:00
 #SBATCH --account=def-mpederso
 #SBATCH --gres=gpu:1              # Number of GPUs (per node)
 #SBATCH --mem=16G               # memory (per node)
@@ -29,4 +29,5 @@ cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/annotations_VisDrone_va
 #cp ~/projects/def-mpederso/akhil135/data_Aerial/VisDrone/train_crops.pkl $SLURM_TMPDIR/VisDrone/
 
 #python train_net.py --num-gpus 1 --config-file configs/Base-RCNN-FPN.yaml OUTPUT_DIR ~/scratch/detectron2/FPN
-python train_net.py --num-gpus 1 --config-file configs/RCNN-FPN-CROP.yaml OUTPUT_DIR ~/scratch/detectron2/FPN_CROP
+python train_net.py --num-gpus 1 --config-file configs/RCNN-FPN-CROP.yaml OUTPUT_DIR ~/scratch/detectron2/CROP_RCNN
+#python train_fcos.py --num-gpus 1 --config-file configs/FCOS-CROP.yaml MODEL.WEIGHTS ~/scratch/DroneSSOD/best_models/FCOS_CROP_33_67.pth CROPTEST.PREDICT_ONLY True

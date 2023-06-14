@@ -5,7 +5,7 @@
 This is the PyTorch implementation of our paper: <br>
 **Cascaded Zoom-in Detector for High Resolution Aerial Images**<br>
 Akhil Meethal, Eric Granger, Marco Pedersoli<br>
-[[arXiv](https://arxiv.org/abs/2303.08747)]
+[[arXiv](https://arxiv.org/abs/2303.08747)] [[CVPRw](https://openaccess.thecvf.com/content/CVPR2023W/EarthVision/papers/Meethal_Cascaded_Zoom-In_Detector_for_High_Resolution_Aerial_Images_CVPRW_2023_paper.pdf)]
 
 Accepted at: CVPRw 2023 ([EarthVison Workshop](https://www.grss-ieee.org/events/earthvision-2023/?tab=aims-and-scope) oragnized by IEEE GRSS)
 

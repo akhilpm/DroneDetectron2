@@ -11,7 +11,6 @@ from contextlib import ExitStack, contextmanager
 import logging
 from torchvision.transforms import Resize
 from detectron2.structures.instances import Instances
-from utils.box_utils import bbox_inside_old
 from utils.plot_utils import plot_detections
 from detectron2.utils.logger import log_every_n_seconds
 from utils.box_utils import compute_crops
@@ -19,20 +18,6 @@ from utils.crop_utils import get_dict_from_crops
 from detectron2.data.build import get_detection_dataset_dicts
 from detectron2.modeling.roi_heads.fast_rcnn import fast_rcnn_inference
 logging.basicConfig(level=logging.INFO)
-
-
-def prune_boxes_inside_cluster(cluster_dicts, boxes, scores, num_classes):
-    boxes = boxes[0].reshape(-1, 4)
-    scores = scores[0].flatten()
-    for cluster_dict in cluster_dicts:
-        crop_area = cluster_dict["crop_area"]
-        inside_boxes = bbox_inside_old(crop_area, boxes)
-        boxes[inside_boxes] = 0.0
-        scores[inside_boxes] = 0.0
-    boxes = boxes.view(-1, num_classes * 4)
-    scores = scores.view(-1, num_classes)
-    return [boxes], [scores]
-
 
 def inference_with_crops(model, data_loader, evaluator, cfg, iter):
     from detectron2.utils.comm import get_world_size

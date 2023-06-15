@@ -120,7 +120,7 @@ python train_net.py \
 ## Results comparison on the VisDrone dataset
 
 <p align="center">
-<img src="teaser/crop_rcnn_results.png" width="55%">
+<img src="teaser/crop_rcnn_results.png" width="50%">
 </p>
 
 ## Citing Cascaded Zoom-in Detector

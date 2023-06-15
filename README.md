@@ -53,6 +53,7 @@ croptrain/
         ├── annotations_VisDrone_train.json
         └── annotations_VisDrone_val.json
 ```
+The original annotations provided with the VisDrone dataset is in PASCAL VOC format. I used this code to convert it to COCO style annotation: [VOC2COCO](https://github.com/Tony607/voc2coco/blob/master/voc2coco.py)
 
 3. Download DOTA dataset 
 

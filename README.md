@@ -13,6 +13,8 @@ Accepted at: CVPRw 2023 ([EarthVison Workshop](https://www.grss-ieee.org/events/
 <img src="teaser/base_diagram.png" width="85%">
 </p>
 
+The method proposed in this paper can be easily integrated to the detector of your choice to improve its small object detection performance. In this repo, we demonstrated it with the two-stage Faster RCNN detector and the one-stage anchor free FCOS detector. 
+
 # Installation
 
 ## Prerequisites
@@ -53,7 +55,10 @@ croptrain/
         ├── annotations_VisDrone_train.json
         └── annotations_VisDrone_val.json
 ```
-The original annotations provided with the VisDrone dataset is in PASCAL VOC format. I used this code to convert it to COCO style annotation: [VOC2COCO](https://github.com/Tony607/voc2coco/blob/master/voc2coco.py)
+The original annotations provided with the VisDrone dataset is in PASCAL VOC format. I used this code to convert it to COCO style annotation: [VOC2COCO](https://github.com/Tony607/voc2coco/blob/master/voc2coco.py).
+Update: I am sharing the json files I generated for the VisDrone dataset via google drive below.
+a) [annotations_VisDrone_train.json](https://drive.google.com/file/d/1awV0WWScKO7rRdff8mPkn_Q-S261i7Tm/view?usp=sharing)
+b) [annotations_VisDrone_val.json](https://drive.google.com/file/d/1SAxFcQDM6txwzK5Itb0sYjxp9i2CYqC4/view?usp=sharing)
 
 3. Download DOTA dataset 
 

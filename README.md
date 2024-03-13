@@ -65,7 +65,11 @@ b) [annotations_VisDrone_val.json](https://drive.google.com/file/d/1SAxFcQDM6txw
 
 3. Download DOTA dataset 
 
-Please follow the instructions on [DOTA page](https://captain-whu.github.io/DOTA/dataset.html). Organize it the same way as above.
+Please follow the instructions on [DOTA page](https://captain-whu.github.io/DOTA/dataset.html). Organize it the same way as above. You can also download the json files for train and validation set below:
+
+a) [annotations_DOTA_train.json](https://drive.google.com/file/d/1ejMrVRKMxP4wim-mcpOHGbKvCu9-cBew/view?usp=sharing)
+
+b) [annotations_DOTA_val.json](https://drive.google.com/file/d/1O8pV-8w_EYGbpA-FqO2DIAcmf7mVsGxy/view?usp=sharing)
 
 ## Training
 
